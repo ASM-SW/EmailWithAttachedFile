@@ -1,0 +1,67 @@
+﻿<Window x:Class="EmailWithAttachedFile.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:EmailWithAttachedFile"
+        mc:Ignorable="d"
+        Title="Email With Attached File" Height="541.665" Width="525" Closing="MainFormClosing">
+
+    <Grid HorizontalAlignment="Left" Width="517" Height="511" VerticalAlignment="Top">
+
+        <Grid HorizontalAlignment="Left" Height="Auto" Margin="22,22,0,0" VerticalAlignment="Top" Width="475">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Label Grid.Row="0" Grid.Column="0" Content="From Email Addr" HorizontalAlignment="Right"/>
+            <TextBox Grid.Row="0" Grid.Column="1"   Name="textFromEmail"/>
+
+            <Label Grid.Row="1" Grid.Column="0" Content="Mail Subject" HorizontalAlignment="Right"/>
+            <TextBox Grid.Row="1" Grid.Column="1"   Name="textMailSubject"/>
+
+            <Label Grid.Row="2" Grid.Column="0" Content="Smtp Server" HorizontalAlignment="Right"/>
+            <TextBox Grid.Row="2" Grid.Column="1" Name="textSmtpServer"/>
+
+            <Label Grid.Row="3" Grid.Column="0" Content="SMTP Port" HorizontalAlignment="Right"/>
+            <TextBox Grid.Row="3" Grid.Column="1"  Name="textSmtpPort" PreviewTextInput="IntegerOnly" DataObject.Pasting="IntegerOnlyPasting"/>
+
+            <Label Grid.Row="4" Grid.Column="0" Content="SMTP Enable SSL" HorizontalAlignment="Right"/>
+            <CheckBox Grid.Row="4" Grid.Column="1" Name="checkSmtpEnableSsl" Margin="5,5,-5,21" Grid.RowSpan="2"/>
+
+            <Label Grid.Row="5" Grid.Column="0" Content="Password" HorizontalAlignment="Right"/>
+            <PasswordBox Grid.Row="5" Grid.Column="1"  Name="password"/>
+
+            <Button Grid.Row="6" Grid.Column="0" Content="Message Template" Name="butttonMessageTemplate" Margin="3" Click="buttonMessageTemplate_Click" />
+            <TextBox Grid.Row="6" Grid.Column="1" Name="textMessageTemplateFileName" ScrollViewer.HorizontalScrollBarVisibility="Auto" />
+
+            <Button Grid.Row="7" Grid.Column="0" Content="Input File" Name="butttonInputFile" Margin="3" Click="buttonInputFile_Click" />
+            <TextBox Grid.Row="7" Grid.Column="1" Name="textInputName" ScrollViewer.HorizontalScrollBarVisibility="Auto"  />
+
+            <Label Grid.Row="8" Grid.Column="0" />
+
+            <Button Grid.Row="9" Grid.Column="0" x:Name="buttonStart" Content="Start" Padding="5,1" Width="Auto" HorizontalAlignment="Center"  Click="buttonStart_Click"/>
+            <Button Grid.Row="9" Grid.Column="1" x:Name="buttonStop" Content="Stop" Padding="5,1" Width="Auto" HorizontalAlignment="Right" Click="buttonStop_Click" IsEnabled="False"/>
+
+        </Grid>
+        <ProgressBar HorizontalAlignment="Left" Height="13" Margin="174,290,0,0" VerticalAlignment="Top" Width="323" Name="progressBar"/>
+        <Label Name="progressText" Content="Label" HorizontalAlignment="Left" Height="Auto" Margin="10,285,0,0" VerticalAlignment="Top" Width="159"/>
+        <ListBox x:Name="listLog" HorizontalAlignment="Stretch" Height="auto" Margin="0,322,0,0" VerticalAlignment="Stretch" Width="auto"/>
+
+    </Grid>
+    
+</Window>
