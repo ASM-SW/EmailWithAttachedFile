@@ -1,16 +1,14 @@
 ﻿using System;
-using System.Runtime.Serialization;
-using System.Collections.Generic;
-using System.Linq;
 using System.Security;
-using System.Text;
-using System.Threading.Tasks;
 using System.IO;
 using System.Xml.Serialization;
 using System.Windows;
 
 namespace EmailWithAttachedFile
 {
+    /// <summary>
+    /// This class is used to store user input between runs.  The Password is not stored.  While the program is running the password is kept in a SecureString for security.
+    /// </summary>
     [Serializable]
     public class ConfigurationEmailWAF
     {

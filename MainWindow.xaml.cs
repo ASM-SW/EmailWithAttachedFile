@@ -1,23 +1,12 @@
 ﻿using Microsoft.VisualBasic.FileIO;
 using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.IO;
-using System.Linq;
-using System.Security;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
 using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 
 namespace EmailWithAttachedFile
 {
@@ -41,6 +30,9 @@ namespace EmailWithAttachedFile
             textMailSubject.Text = m_configuration.MailSubject;
         }
 
+        /// <summary>
+        /// This object is used to pass result status from the background worker thread by the ReportProgress method
+        /// </summary>
         class ResultObject
         {
             public ResultObject()
@@ -51,11 +43,11 @@ namespace EmailWithAttachedFile
                 ErrorMessage = string.Empty;
                 IsOk = true;
             }
-            public int MaxCount { get; set; }
-            public int CountComplete { get; set; }
-            public string NameComplete { get; set; }
-            public string ErrorMessage { get; set; }
-            public bool IsOk { get; set; }
+            public int MaxCount { get; set; }           // Number of emails being sent
+            public int CountComplete { get; set; }      // Number of emails completed
+            public string NameComplete { get; set; }    // Name of the last email completed
+            public string ErrorMessage { get; set; }    // Error message if there was an issue
+            public bool IsOk { get; set; }              // false indicates there was an error
         }
 
         private ConfigurationEmailWAF m_configuration = new ConfigurationEmailWAF();
@@ -76,6 +68,9 @@ namespace EmailWithAttachedFile
             }
         }
 
+        /// <summary>
+        /// reads values from the form (user input) and puts them into the configuration object
+        /// </summary>
         private void GetValuesFromForm()
         {
             m_configuration.FromEmail = textFromEmail.Text;
@@ -92,6 +87,10 @@ namespace EmailWithAttachedFile
             m_configuration.MailSubject = textMailSubject.Text;
         }
 
+        /// <summary>
+        /// Checks that the user input is OK.  Puts up a message box on error
+        /// </summary>
+        /// <returns>false if there was an error</returns>
         private bool CheckConfiguration()
         {
             bool isOk = true;
@@ -120,6 +119,13 @@ namespace EmailWithAttachedFile
             return isOk;
         }
 
+        /// <summary>
+        /// Checks if a file exists.
+        /// </summary>
+        /// <param name="fileName">name of file</param>
+        /// <param name="name">user friendly name to put in error message</param>
+        /// <param name="errMsg">string builder for error message.  Message are appended.</param>
+        /// <returns>true if OK</returns>
         private bool CheckFile(string fileName, string name, ref StringBuilder errMsg)
         {
             bool isOk = true;
@@ -135,6 +141,13 @@ namespace EmailWithAttachedFile
             return isOk;
         }
 
+        /// <summary>
+        /// Checks to see if a string is null or whitespace.
+        /// </summary>
+        /// <param name="value">string to check</param>
+        /// <param name="name">user friendly name to put in error message</param>
+        /// <param name="errMsg">string builder for error message.  Message are appended.</param>
+        /// <returns>true if OK</returns>
         private bool CheckString(string value, string name, ref StringBuilder errMsg)
         {
             if (string.IsNullOrWhiteSpace(value))
@@ -144,6 +157,10 @@ namespace EmailWithAttachedFile
             }
             return true;
         }
+
+        /// <summary>
+        /// Creates and setsups backgroud worker threader.  Inits mail sender.
+        /// </summary>
         private void StartupBackgroudWorker()
         {
             progressBar.Value = 0;
@@ -165,6 +182,11 @@ namespace EmailWithAttachedFile
             m_bgWorker.RunWorkerAsync(null);
         }
 
+        /// <summary>
+        /// Background worker thread.  Reads the input file.  Sends email to each row in the file.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void worker_DoWork(object sender, DoWorkEventArgs e)
         {
             DataTable inputData;
@@ -227,6 +249,7 @@ namespace EmailWithAttachedFile
             buttonStop.IsEnabled = false;
             buttonStart.IsEnabled = true;
         }
+
         private void buttonMessageTemplate_Click(object sender, RoutedEventArgs e)
         {
             Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog();
@@ -243,14 +266,22 @@ namespace EmailWithAttachedFile
             }
         }
 
-        // check to see if text is a string
+        /// <summary>
+        /// Checks to see if input is an integer
+        /// </summary>
+        /// <param name="text"></param>
+        /// <returns></returns>
         private static bool IsInteger(string text)
         {
             Regex regex = new Regex("[0-9]+");
             return regex.IsMatch(text);
         }
 
-        // limit input to a integer during past event
+        /// <summary>
+        /// limit input to a integer during paste event
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void IntegerOnlyPasting(object sender, DataObjectPastingEventArgs e)
         {
             if (e.DataObject.GetDataPresent(typeof(String)))
@@ -267,7 +298,11 @@ namespace EmailWithAttachedFile
             }
         }
 
-        // limit input to an integer during text entry
+        /// <summary>
+        /// limit input to an integer during text entry
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void IntegerOnly(object sender, TextCompositionEventArgs e)
         {
             e.Handled = !IsInteger(e.Text);
@@ -288,6 +323,11 @@ namespace EmailWithAttachedFile
                 textInputName.Text = filename;
             }
         }
+
+        /// <summary>
+        /// Parser for reading the CSV input file.
+        /// </summary>
+        /// <param name="inputData">DataTabel containing the read in data</param>
         private void ReadInputFile(out DataTable inputData)
         {
             inputData = new DataTable();
@@ -327,6 +367,11 @@ namespace EmailWithAttachedFile
                 m_bgWorker.CancelAsync();
         }
 
+        /// <summary>
+        /// Saves configuration when shutting down
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void MainFormClosing(object sender, CancelEventArgs e)
         {
             GetValuesFromForm();

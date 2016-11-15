@@ -1,15 +1,16 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Net;
 using System.Net.Mail;
 using System.Net.Mime;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace EmailWithAttachedFile
 {
+    /// <summary>
+    /// This class sends email with an attached file.  The email is based on a text template file.  The attached file can be any file type.
+    /// The token:  "<NAME>" in the template file is replaced with the a string passed into the sender.
+    /// </summary>
     class EmailSender
     {
         public EmailSender() { }
@@ -19,7 +20,13 @@ namespace EmailWithAttachedFile
         string m_emailTemplate = string.Empty;
         readonly string NAMETOKEN = "<NAME>";
 
-
+        /// <summary>
+        /// Checks to see if the template file exists and reads it.
+        /// Checks the the token is in the template file, and displays a warning if it is missing.
+        /// </summary>
+        /// <param name="config"></param>
+        /// <param name="errMsg"></param>
+        /// <returns></returns>
         public bool Init(ref ConfigurationEmailWAF config, out StringBuilder errMsg)
         {
             errMsg = new StringBuilder();
@@ -52,6 +59,14 @@ namespace EmailWithAttachedFile
             return m_init;
         }
 
+        /// <summary>
+        /// Sends an email
+        /// </summary>
+        /// <param name="name">This is used to replace the name token in the template file </param>
+        /// <param name="email">email address to send the email to</param>
+        /// <param name="fileName">filename to attach to the file</param>
+        /// <param name="errMsg">If the method returns false, contains a error message</param>
+        /// <returns>true if no errors occurred</returns>
         public bool SendMail(string name, string email, string fileName, out string errMsg)
         {
             errMsg = string.Empty;
