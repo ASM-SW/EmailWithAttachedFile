@@ -1,4 +1,7 @@
-﻿using Microsoft.VisualBasic.FileIO;
+﻿// Copyright © 2016  ASM-SW
+//asmeyers@outlook.com  https://github.com/asm-sw
+
+using Microsoft.VisualBasic.FileIO;
 using System;
 using System.ComponentModel;
 using System.Data;

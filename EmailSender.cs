@@ -1,4 +1,7 @@
-﻿using System;
+﻿// Copyright © 2016  ASM-SW
+//asmeyers@outlook.com  https://github.com/asm-sw
+
+using System;
 using System.IO;
 using System.Net;
 using System.Net.Mail;
