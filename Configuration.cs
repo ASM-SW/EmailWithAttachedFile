@@ -1,6 +1,5 @@
-﻿// Copyright © 2016  ASM-SW
+﻿// Copyright © 2016-2019  ASM-SW
 //asmeyers@outlook.com  https://github.com/asm-sw
-
 using System;
 using System.Security;
 using System.IO;
@@ -10,7 +9,7 @@ using System.Windows;
 namespace EmailWithAttachedFile
 {
     /// <summary>
-    /// This class is used to store user input between runs.  The Password is not stored.  While the program is running the password is kept in a SecureString for security.
+    /// This class is used to store user input between runs.  The Password is not stored.  D
     /// </summary>
     [Serializable]
     public class ConfigurationEmailWAF

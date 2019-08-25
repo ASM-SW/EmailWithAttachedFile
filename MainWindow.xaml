@@ -6,7 +6,16 @@
         xmlns:local="clr-namespace:EmailWithAttachedFile"
         mc:Ignorable="d"
         Title="Email With Attached File" Height="541.665" Width="525" Closing="MainFormClosing">
-
+    
+    <Window.Resources>
+        <Style x:Key="StdButton" TargetType="Button">
+            <Setter Property="Width" Value="100"/>
+            <!--<Setter Property="Control.Background" Value="AliceBlue"/>-->
+            <Setter Property="Control.FontFamily" Value="Calibri" />
+            <Setter Property="Control.FontWeight" Value="Bold" />
+        </Style>
+    </Window.Resources>
+    
     <Grid HorizontalAlignment="Left" Width="517" Height="511" VerticalAlignment="Top">
 
         <Grid HorizontalAlignment="Left" Height="Auto" Margin="22,22,0,0" VerticalAlignment="Top" Width="475">
@@ -60,7 +69,7 @@
         </Grid>
         <ProgressBar HorizontalAlignment="Left" Height="13" Margin="174,290,0,0" VerticalAlignment="Top" Width="323" Name="progressBar"/>
         <Label Name="progressText" Content="Label" HorizontalAlignment="Left" Height="Auto" Margin="10,285,0,0" VerticalAlignment="Top" Width="159"/>
-        <ListBox x:Name="listLog" HorizontalAlignment="Stretch" Height="auto" Margin="0,322,0,0" VerticalAlignment="Stretch" Width="auto"/>
+        <ListBox x:Name="listLog" HorizontalContentAlignment="Stretch"  HorizontalAlignment="Stretch" Height="auto" Margin="0,322,0,0" />
 
     </Grid>
     

@@ -66,6 +66,7 @@
     </Compile>
     <Compile Include="Configuration.cs" />
     <Compile Include="EmailSender.cs" />
+    <Compile Include="Extensions.cs" />
     <Compile Include="MainWindow.xaml.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>

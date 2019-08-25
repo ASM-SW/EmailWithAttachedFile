@@ -1,4 +1,4 @@
-﻿// Copyright © 2016  ASM-SW
+﻿// Copyright © 2016-2019  ASM-SW
 //asmeyers@outlook.com  https://github.com/asm-sw
 
 using Microsoft.VisualBasic.FileIO;
@@ -13,6 +13,14 @@ using System.Windows.Input;
 
 namespace EmailWithAttachedFile
 {
+    enum MsgStatus
+    {
+        NotSent=0,
+        Sent,
+        Error,
+        NoEmailAddress
+    }
+
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
@@ -56,6 +64,7 @@ namespace EmailWithAttachedFile
         private ConfigurationEmailWAF m_configuration = new ConfigurationEmailWAF();
         private BackgroundWorker m_bgWorker = new BackgroundWorker();
         private EmailSender m_emailSender = new EmailSender();
+        private string m_outputFileName = string.Empty;
 
         private void buttonStart_Click(object sender, RoutedEventArgs e)
         {
@@ -192,10 +201,18 @@ namespace EmailWithAttachedFile
         /// <param name="e"></param>
         private void worker_DoWork(object sender, DoWorkEventArgs e)
         {
-            DataTable inputData;
+            DataTable inputData = new DataTable();
             ReadInputFile(out inputData);
             if (m_bgWorker.CancellationPending)
                 return;
+
+            inputData.Columns.Add("Status", typeof(string));
+            inputData.Columns.Add("Message", typeof(string));
+            foreach (DataRow row in inputData.Rows)
+            {
+                row["Status"] = MsgStatus.NotSent.ToString();
+                row["Message"] = string.Empty;
+            }
 
             ResultObject results = new ResultObject();
             results.MaxCount = inputData.Rows.Count;
@@ -206,13 +223,31 @@ namespace EmailWithAttachedFile
                 if (m_bgWorker.CancellationPending)
                 {
                     e.Cancel = true;
-                    return;
+                    break;
                 }
-                // send the email
-                string errMsg;
-                results.IsOk = m_emailSender.SendMail(row["Name"].ToString(), row["Email"].ToString(), row["FileName"].ToString(), out errMsg);
-                results.ErrorMessage = errMsg;
-
+                if (string.IsNullOrWhiteSpace(row["Email"].ToString()))
+                {
+                    results.IsOk = false;
+                    results.ErrorMessage = "Email address is blank";
+                    row["Status"] = MsgStatus.NoEmailAddress.ToString();
+                    row["Message"] = results.ErrorMessage;
+                }
+                else
+                {
+                    // send the email
+                    string errMsg;
+                    results.IsOk = m_emailSender.SendMail(row["Name"].ToString(), row["Email"].ToString(), row["FileName"].ToString(), out errMsg);
+                    results.ErrorMessage = errMsg;
+                    if (results.IsOk)
+                    {
+                        row["Status"] = MsgStatus.Sent.ToString();
+                    }
+                    else
+                    {
+                        row["Status"] = MsgStatus.Error.ToString();
+                        row["Message"] = results.ErrorMessage.Replace('\n', ';');
+                    }
+                }
                 results.NameComplete = row["Name"].ToString();
                 ++results.CountComplete;
                 int progressPercentage = Convert.ToInt32(((double)results.CountComplete / results.MaxCount) * 100);
@@ -220,7 +255,13 @@ namespace EmailWithAttachedFile
                 e.Result = results;
 
             }
-            buttonStart.IsEnabled = true;
+            // write out results file
+            m_outputFileName = Path.Combine(Path.GetDirectoryName(m_configuration.InputFileName),
+                Path.GetFileNameWithoutExtension(m_configuration.InputFileName)) + "out.csv";
+            using (System.IO.StreamWriter file = new System.IO.StreamWriter(m_outputFileName))
+            {
+                file.Write(inputData.ToCSV());
+            }
         }
 
 
@@ -232,10 +273,10 @@ namespace EmailWithAttachedFile
             {
                 progressText.Content = string.Format("{0} of {1} complete", results.CountComplete, results.MaxCount);
                 if(results.IsOk)
-                    Log(results.NameComplete + " Sent");
+                    Log("Sent: " +results.NameComplete);
                 else
                 {
-                    Log(results.ErrorMessage);
+                    Log("Not Sent: " + results.NameComplete + "\n\t" + results.ErrorMessage);
                 }
             }
         }
@@ -249,6 +290,9 @@ namespace EmailWithAttachedFile
 
         void worker_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
         {
+            Log("************ DONE *********************");
+            Log("Check results in: " + m_outputFileName);
+            Log("***************************************");
             buttonStop.IsEnabled = false;
             buttonStart.IsEnabled = true;
         }
@@ -361,8 +405,9 @@ namespace EmailWithAttachedFile
 
         private void buttonStop_Click(object sender, RoutedEventArgs e)
         {
-            buttonStart.IsEnabled = true;
-            buttonStop.IsEnabled = false;
+            // button enable handled in worker_RunWorkerCompleted()
+            //buttonStart.IsEnabled = true;
+            //buttonStop.IsEnabled = false;
 
             if (m_bgWorker == null)
                 return;
