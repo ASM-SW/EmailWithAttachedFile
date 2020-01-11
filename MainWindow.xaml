@@ -68,7 +68,7 @@
 
         </Grid>
         <ProgressBar HorizontalAlignment="Left" Height="13" Margin="174,290,0,0" VerticalAlignment="Top" Width="323" Name="progressBar"/>
-        <Label Name="progressText" Content="Label" HorizontalAlignment="Left" Height="Auto" Margin="10,285,0,0" VerticalAlignment="Top" Width="159"/>
+        <Label Name="progressText" Content="" HorizontalAlignment="Left" Height="Auto" Margin="10,285,0,0" VerticalAlignment="Top" Width="159"/>
         <ListBox x:Name="listLog" HorizontalContentAlignment="Stretch"  HorizontalAlignment="Stretch" Height="auto" Margin="0,322,0,0" />
 
     </Grid>
