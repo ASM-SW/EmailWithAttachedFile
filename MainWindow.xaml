@@ -55,16 +55,16 @@
             <Label Grid.Row="5" Grid.Column="0" Content="Password" HorizontalAlignment="Right"/>
             <PasswordBox Grid.Row="5" Grid.Column="1"  Name="password"/>
 
-            <Button Grid.Row="6" Grid.Column="0" Content="Message Template" Name="butttonMessageTemplate" Margin="3" Click="buttonMessageTemplate_Click" />
+            <Button Grid.Row="6" Grid.Column="0" Content="Message Template" Name="butttonMessageTemplate" Margin="3" Click="ButtonMessageTemplate_Click" />
             <TextBox Grid.Row="6" Grid.Column="1" Name="textMessageTemplateFileName" ScrollViewer.HorizontalScrollBarVisibility="Auto" />
 
-            <Button Grid.Row="7" Grid.Column="0" Content="Input File" Name="butttonInputFile" Margin="3" Click="buttonInputFile_Click" />
+            <Button Grid.Row="7" Grid.Column="0" Content="Input File" Name="butttonInputFile" Margin="3" Click="ButtonInputFile_Click" />
             <TextBox Grid.Row="7" Grid.Column="1" Name="textInputName" ScrollViewer.HorizontalScrollBarVisibility="Auto"  />
 
             <Label Grid.Row="8" Grid.Column="0" />
 
-            <Button Grid.Row="9" Grid.Column="0" x:Name="buttonStart" Content="Start" Padding="5,1" Width="Auto" HorizontalAlignment="Center"  Click="buttonStart_Click"/>
-            <Button Grid.Row="9" Grid.Column="1" x:Name="buttonStop" Content="Stop" Padding="5,1" Width="Auto" HorizontalAlignment="Right" Click="buttonStop_Click" IsEnabled="False"/>
+            <Button Grid.Row="9" Grid.Column="0" x:Name="buttonStart" Content="Start" Padding="5,1" Width="Auto" HorizontalAlignment="Center"  Click="ButtonStart_Click"/>
+            <Button Grid.Row="9" Grid.Column="1" x:Name="buttonStop" Content="Stop" Padding="5,1" Width="Auto" HorizontalAlignment="Right" Click="ButtonStop_Click" IsEnabled="False"/>
 
         </Grid>
         <ProgressBar HorizontalAlignment="Left" Height="13" Margin="174,290,0,0" VerticalAlignment="Top" Width="323" Name="progressBar"/>

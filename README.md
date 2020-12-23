@@ -3,4 +3,4 @@ Send email to multiple people with unique attached files.  Email message is base
 
 This program parses a CSV file. Each line in the CSV file contains the name, email and file to attach to the email.  This gives each recipient a unique email.
 
-More information is available in the PDF file:  EmailWithFile.pdf.
+More information including a list of libraries used along with their license is available in the PDF file:  EmailWithFile.pdf.

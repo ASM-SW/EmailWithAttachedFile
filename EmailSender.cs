@@ -1,12 +1,11 @@
-﻿// Copyright © 2016  ASM-SW
+﻿// Copyright © 2016-2020  ASM-SW
 //asmeyers@outlook.com  https://github.com/asm-sw
 
 using System;
 using System.IO;
-using System.Net;
-using System.Net.Mail;
-using System.Net.Mime;
+using MimeKit;
 using System.Text;
+using System.Net;
 
 namespace EmailWithAttachedFile
 {
@@ -22,6 +21,7 @@ namespace EmailWithAttachedFile
         bool m_init = false;
         string m_emailTemplate = string.Empty;
         readonly string NAMETOKEN = "<NAME>";
+        NetworkCredential m_credential;
 
         /// <summary>
         /// Checks to see if the template file exists and reads it.
@@ -35,6 +35,7 @@ namespace EmailWithAttachedFile
             errMsg = new StringBuilder();
             m_config = config;
             m_init = true;
+            m_credential = new NetworkCredential(m_config.FromEmail, m_config.Password);
 
             if (!File.Exists(m_config.TemplateFileName))
             {
@@ -66,7 +67,7 @@ namespace EmailWithAttachedFile
         /// Sends an email
         /// </summary>
         /// <param name="name">This is used to replace the name token in the template file </param>
-        /// <param name="email">email address to send the email to</param>
+        /// <param name="email">email address list to send the email to.  Separate emails with a semicolon</param>
         /// <param name="fileName">filename to attach to the file</param>
         /// <param name="errMsg">If the method returns false, contains a error message</param>
         /// <returns>true if no errors occurred</returns>
@@ -78,52 +79,42 @@ namespace EmailWithAttachedFile
                 errMsg = "ERROR:  Email Sender has not been initialized";
                 return false;
             }
-
             string body = m_emailTemplate.Replace(NAMETOKEN, name);
-
-            using (MailMessage mail = new MailMessage())
+            try
             {
+                BodyBuilder builder = new BodyBuilder { TextBody = body };
+                builder.Attachments.Add(fileName);
 
-                using (SmtpClient smtpClient = new SmtpClient(m_config.SmtpServer))
+                MimeKit.MimeMessage mail = new MimeMessage();
+                mail.From.Add(MailboxAddress.Parse(m_config.FromEmail));
+
+                string[] emailList = email.Split(';');
+                foreach (string emailItem in emailList)
+                    mail.To.Add(MailboxAddress.Parse(emailItem.Trim()));
+                mail.Subject = m_config.MailSubject;
+                mail.Body = builder.ToMessageBody();
+
+                //todo reuse client, would have to process list of emails here, rather than one at a time.
+                // this might allow you to use one connection for multliple emails
+                using (MailKit.Net.Smtp.SmtpClient client = new MailKit.Net.Smtp.SmtpClient())
                 {
-                    //todo reuse smtp client  https://msdn.microsoft.com/en-us/library/system.net.mail.smtpclient(v=vs.110).aspx
+                    MailKit.Security.SecureSocketOptions secureOption = MailKit.Security.SecureSocketOptions.None;
+                    if (m_config.SmtpEnabledSSL)
+                        secureOption = MailKit.Security.SecureSocketOptions.Auto;
 
-                    try
-                    {
-
-                        mail.From = new MailAddress(m_config.FromEmail);
-                        mail.To.Add(email);
-                        mail.Subject = m_config.MailSubject;
-                        mail.Body = body;
-
-                        Attachment attachment;
-                        attachment = new Attachment(fileName);
-                        FileInfo fInfo = new System.IO.FileInfo(fileName);
-                        mail.Attachments.Add(attachment);
-
-                        ContentDisposition disposition = attachment.ContentDisposition;
-                        disposition.CreationDate = fInfo.CreationTime;
-                        disposition.ModificationDate = fInfo.CreationTime;
-                        disposition.ReadDate = fInfo.CreationTime;
-                        disposition.FileName = Path.GetFileName(fileName);
-                        disposition.Size = fInfo.Length;
-                        disposition.DispositionType = DispositionTypeNames.Attachment;
-
-                        smtpClient.Port = m_config.SmtpPort;
-                        smtpClient.Credentials = new NetworkCredential(m_config.FromEmail, m_config.Password);
-                        smtpClient.EnableSsl = m_config.SmtpEnabledSSL;
-
-                        smtpClient.Send(mail);
-                    }
-                    catch (Exception ex)
-                    {
-                        errMsg = "ERROR sending mail to: " + name + "\n\t" + ex.Message;
-                        return false;
-                    }
-
-                    return true;
+                    client.Connect(m_config.SmtpServer, m_config.SmtpPort, secureOption);
+                    client.Authenticate(credentials: m_credential);
+                    client.Send(mail);
+                    client.Disconnect(true);
                 }
             }
+            catch (Exception ex)
+            {
+                errMsg = $"ERROR sending mail to: {name}\n\t{ex.Message}";
+                return false;
+            }
+
+            return true;
         }
     }
 }

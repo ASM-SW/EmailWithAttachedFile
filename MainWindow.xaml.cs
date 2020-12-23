@@ -1,4 +1,4 @@
-﻿// Copyright © 2016-2019  ASM-SW
+﻿// Copyright © 2016-2020  ASM-SW
 //asmeyers@outlook.com  https://github.com/asm-sw
 
 using Microsoft.VisualBasic.FileIO;
@@ -66,7 +66,7 @@ namespace EmailWithAttachedFile
         private EmailSender m_emailSender = new EmailSender();
         private string m_outputFileName = string.Empty;
 
-        private void buttonStart_Click(object sender, RoutedEventArgs e)
+        private void ButtonStart_Click(object sender, RoutedEventArgs e)
         {
             GetValuesFromForm();
 
@@ -88,8 +88,7 @@ namespace EmailWithAttachedFile
             m_configuration.FromEmail = textFromEmail.Text;
             m_configuration.SmtpServer = textSmtpServer.Text;
 
-            int port = 0;
-            int.TryParse(textSmtpPort.Text, out port);
+            int.TryParse(textSmtpPort.Text, out int port);
 
             m_configuration.SmtpPort = port;
             m_configuration.SmtpEnabledSSL = (bool)checkSmtpEnableSsl.IsChecked;
@@ -178,18 +177,19 @@ namespace EmailWithAttachedFile
             progressBar.Value = 0;
             progressText.Content = string.Empty;
 
-            StringBuilder errMsg;
-            if(!m_emailSender.Init(ref m_configuration, out errMsg))
+            if (!m_emailSender.Init(ref m_configuration, out StringBuilder errMsg))
             {
                 MessageBox.Show(errMsg.ToString());
                 return;
             }
 
-            m_bgWorker = new BackgroundWorker();
-            m_bgWorker.WorkerReportsProgress = true;
-            m_bgWorker.DoWork += worker_DoWork;
-            m_bgWorker.ProgressChanged += worker_ProgressChanged;
-            m_bgWorker.RunWorkerCompleted += worker_RunWorkerCompleted;
+            m_bgWorker = new BackgroundWorker
+            {
+                WorkerReportsProgress = true
+            };
+            m_bgWorker.DoWork += Worker_DoWork;
+            m_bgWorker.ProgressChanged += Worker_ProgressChanged;
+            m_bgWorker.RunWorkerCompleted += Worker_RunWorkerCompleted;
             m_bgWorker.WorkerSupportsCancellation = true;
             m_bgWorker.RunWorkerAsync(null);
         }
@@ -199,7 +199,7 @@ namespace EmailWithAttachedFile
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void worker_DoWork(object sender, DoWorkEventArgs e)
+        private void Worker_DoWork(object sender, DoWorkEventArgs e)
         {
             DataTable inputData = new DataTable();
             ReadInputFile(out inputData);
@@ -214,9 +214,11 @@ namespace EmailWithAttachedFile
                 row["Message"] = string.Empty;
             }
 
-            ResultObject results = new ResultObject();
-            results.MaxCount = inputData.Rows.Count;
-            results.CountComplete = 0;
+            ResultObject results = new ResultObject
+            {
+                MaxCount = inputData.Rows.Count,
+                CountComplete = 0
+            };
 
             foreach (DataRow row in inputData.Rows)
             {
@@ -235,8 +237,7 @@ namespace EmailWithAttachedFile
                 else
                 {
                     // send the email
-                    string errMsg;
-                    results.IsOk = m_emailSender.SendMail(row["Name"].ToString(), row["Email"].ToString(), row["FileName"].ToString(), out errMsg);
+                    results.IsOk = m_emailSender.SendMail(row["Name"].ToString(), row["Email"].ToString(), row["FileName"].ToString(), out string errMsg);
                     results.ErrorMessage = errMsg;
                     if (results.IsOk)
                     {
@@ -265,15 +266,14 @@ namespace EmailWithAttachedFile
         }
 
 
-        private void worker_ProgressChanged(object sender, ProgressChangedEventArgs e)
+        private void Worker_ProgressChanged(object sender, ProgressChangedEventArgs e)
         {
             progressBar.Value = e.ProgressPercentage;
-            ResultObject results = e.UserState as ResultObject;
-            if (results != null)
+            if (e.UserState is ResultObject results)
             {
                 progressText.Content = string.Format("{0} of {1} complete", results.CountComplete, results.MaxCount);
-                if(results.IsOk)
-                    Log("Sent: " +results.NameComplete);
+                if (results.IsOk)
+                    Log("Sent: " + results.NameComplete);
                 else
                 {
                     Log("Not Sent: " + results.NameComplete + "\n\t" + results.ErrorMessage);
@@ -288,7 +288,7 @@ namespace EmailWithAttachedFile
             listLog.ScrollIntoView(listLog.Items.CurrentItem);
         }
 
-        void worker_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
+        void Worker_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
         {
             Log("************ DONE *********************");
             Log("Check results in: " + m_outputFileName);
@@ -297,13 +297,14 @@ namespace EmailWithAttachedFile
             buttonStart.IsEnabled = true;
         }
 
-        private void buttonMessageTemplate_Click(object sender, RoutedEventArgs e)
+        private void ButtonMessageTemplate_Click(object sender, RoutedEventArgs e)
         {
-            Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog();
-
-            // Set filter for file extension and default file extension 
-            dlg.DefaultExt = ".txt";
-            dlg.Filter = "Text Files (*.txt)|*.txt|All files (*.*)|*.*";
+            Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                // Set filter for file extension and default file extension 
+                DefaultExt = ".txt",
+                Filter = "Text Files (*.txt)|*.txt|All files (*.*)|*.*"
+            };
             Nullable<bool> result = dlg.ShowDialog();
 
             if (result == true)
@@ -355,13 +356,15 @@ namespace EmailWithAttachedFile
             e.Handled = !IsInteger(e.Text);
         }
 
-        private void buttonInputFile_Click(object sender, RoutedEventArgs e)
+        private void ButtonInputFile_Click(object sender, RoutedEventArgs e)
         {
-            Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog();
+            Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog
+            {
 
-            // Set filter for file extension and default file extension 
-            dlg.DefaultExt = ".csv";
-            dlg.Filter = "CSV Files (*.txt)|*.csv|All files (*.*)|*.*";
+                // Set filter for file extension and default file extension 
+                DefaultExt = ".csv",
+                Filter = "CSV Files (*.txt)|*.csv|All files (*.*)|*.*"
+            };
             Nullable<bool> result = dlg.ShowDialog();
 
             if (result == true)
@@ -403,7 +406,7 @@ namespace EmailWithAttachedFile
             }
         }
 
-        private void buttonStop_Click(object sender, RoutedEventArgs e)
+        private void ButtonStop_Click(object sender, RoutedEventArgs e)
         {
             // button enable handled in worker_RunWorkerCompleted()
             //buttonStart.IsEnabled = true;
