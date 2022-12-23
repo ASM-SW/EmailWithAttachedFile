@@ -9,6 +9,7 @@ using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 
 namespace EmailWithAttachedFile
@@ -92,7 +93,7 @@ namespace EmailWithAttachedFile
 
             m_configuration.SmtpPort = port;
             m_configuration.SmtpEnabledSSL = (bool)checkSmtpEnableSsl.IsChecked;
-            m_configuration.Password = password.SecurePassword;
+            m_configuration.Password = passwordBox.SecurePassword;
             m_configuration.TemplateFileName = textMessageTemplateFileName.Text;
             m_configuration.InputFileName = textInputName.Text;
             m_configuration.MailSubject = textMailSubject.Text;
@@ -429,6 +430,20 @@ namespace EmailWithAttachedFile
             m_configuration.Serialize(m_configuration.ConfigFileName);
         }
 
+        private void ShowPassword_Checked(object sender, RoutedEventArgs e)
+        {
+            passwordTxtBox.Text = passwordBox.Password;
+            passwordBox.Visibility = Visibility.Collapsed;
+            passwordTxtBox.Visibility = Visibility.Visible;
+        }
+
+        private void ShowPassword_Unchecked(object sender, RoutedEventArgs e)
+        {
+            passwordBox.Password = passwordTxtBox.Text;
+            passwordTxtBox.Text = "";
+            passwordTxtBox.Visibility = Visibility.Collapsed;
+            passwordBox.Visibility = Visibility.Visible;
+        }
         #region IDisposable Support
         private bool m_disposed = false; // To detect redundant calls
 
