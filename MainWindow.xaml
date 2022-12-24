@@ -5,8 +5,8 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:EmailWithAttachedFile"
         mc:Ignorable="d"
-        Title="Email With Attached File" Height="541.665" Width="525" Closing="MainFormClosing">
-    
+        Title="Email With Attached File" Height="750" Width="540" Closing="MainFormClosing">
+
     <Window.Resources>
         <Style x:Key="StdButton" TargetType="Button">
             <Setter Property="Width" Value="100"/>
@@ -15,11 +15,12 @@
             <Setter Property="Control.FontWeight" Value="Bold" />
         </Style>
     </Window.Resources>
-    
-    <Grid HorizontalAlignment="Left" Width="517" Height="511" VerticalAlignment="Top">
 
-        <Grid HorizontalAlignment="Left" Height="Auto" Margin="22,22,0,0" VerticalAlignment="Top" Width="475">
+    <Grid Height="650" VerticalAlignment="Top" Margin="0,0,8,0">
+
+        <Grid HorizontalAlignment="Left" Height="Auto" Margin="22,22,0,0" VerticalAlignment="Top" Width="490">
             <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
@@ -36,7 +37,7 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="80" />
+                <ColumnDefinition Width="75" />
                 <ColumnDefinition Width="17" />
             </Grid.ColumnDefinitions>
             <Label Grid.Row="0" Grid.Column="0" Content="From Email Addr" HorizontalAlignment="Right"/>
@@ -66,16 +67,21 @@
             <Button Grid.Row="7" Grid.Column="0" Content="Input File" Name="butttonInputFile" Margin="3" Click="ButtonInputFile_Click" />
             <TextBox Grid.Row="7" Grid.Column="1" Name="textInputName" ScrollViewer.HorizontalScrollBarVisibility="Auto"   Grid.ColumnSpan="3"/>
 
-            <Label Grid.Row="8" Grid.Column="0" />
+            <Button Grid.Row="8" Grid.Column="0" Name="butttonAdditionalEmailFile" Width="100" Margin="3" Click="ButtonInputAdditionalEmailFile_Click">
+                <TextBlock TextWrapping="Wrap" Text="Additional Email Addresses File"/>
+            </Button>
+            <TextBox Grid.Row="8" Grid.Column="1" Name="textAdditionEmailName" ScrollViewer.HorizontalScrollBarVisibility="Auto"   Grid.ColumnSpan="3"/>
 
-            <Button Grid.Row="9" Grid.Column="0" x:Name="buttonStart" Content="Start" Padding="5,1" Width="Auto" HorizontalAlignment="Center"  Click="ButtonStart_Click"/>
-            <Button Grid.Row="9" Grid.Column="1" x:Name="buttonStop" Content="Stop" Padding="5,1" Width="Auto" HorizontalAlignment="Right" Click="ButtonStop_Click" IsEnabled="False"/>
+            <Label Grid.Row="9" Grid.Column="0" />
+
+            <Button Grid.Row="10" Grid.Column="0" x:Name="buttonStart" Content="Start" Padding="5,1" Width="Auto" HorizontalAlignment="Center"  Click="ButtonStart_Click"/>
+            <Button Grid.Row="10" Grid.Column="1" x:Name="buttonStop" Content="Stop" Padding="5,1" Width="Auto" HorizontalAlignment="Right" Click="ButtonStop_Click" IsEnabled="False"/>
 
         </Grid>
-        <ProgressBar HorizontalAlignment="Left" Height="13" Margin="174,290,0,0" VerticalAlignment="Top" Width="323" Name="progressBar"/>
-        <Label Name="progressText" Content="" HorizontalAlignment="Left" Height="Auto" Margin="10,285,0,0" VerticalAlignment="Top" Width="159"/>
-        <ListBox x:Name="listLog" HorizontalContentAlignment="Stretch"  HorizontalAlignment="Stretch" Height="auto" Margin="0,322,0,0" />
+        <ProgressBar HorizontalAlignment="Left" Height="13" Margin="174,315,0,0" VerticalAlignment="Top" Width="323" Name="progressBar"/>
+        <Label Name="progressText" Content="" HorizontalAlignment="Left" Height="Auto" Margin="10,310,0,0" VerticalAlignment="Top" Width="159"/>
+        <ListBox x:Name="listLog" HorizontalContentAlignment="Stretch" Margin="5,350,0,-50" />
 
     </Grid>
-    
+
 </Window>

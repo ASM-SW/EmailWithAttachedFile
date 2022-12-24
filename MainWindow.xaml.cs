@@ -1,4 +1,4 @@
-﻿// Copyright © 2016-2020  ASM-SW
+﻿// Copyright © 2016-2022  ASM-SW
 //asmeyers@outlook.com  https://github.com/asm-sw
 
 using Microsoft.VisualBasic.FileIO;
@@ -9,7 +9,6 @@ using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows;
-using System.Windows.Controls;
 using System.Windows.Input;
 
 namespace EmailWithAttachedFile
@@ -39,6 +38,7 @@ namespace EmailWithAttachedFile
             checkSmtpEnableSsl.IsChecked = m_configuration.SmtpEnabledSSL;
             textMessageTemplateFileName.Text = m_configuration.TemplateFileName;
             textInputName.Text = m_configuration.InputFileName;
+            textAdditionEmailName.Text = m_configuration.AdditionEmailAddressFileName;
             textMailSubject.Text = m_configuration.MailSubject;
         }
 
@@ -64,7 +64,7 @@ namespace EmailWithAttachedFile
 
         private ConfigurationEmailWAF m_configuration = new ConfigurationEmailWAF();
         private BackgroundWorker m_bgWorker = new BackgroundWorker();
-        private EmailSender m_emailSender = new EmailSender();
+        private readonly EmailSender m_emailSender = new EmailSender();
         private string m_outputFileName = string.Empty;
 
         private void ButtonStart_Click(object sender, RoutedEventArgs e)
@@ -97,6 +97,7 @@ namespace EmailWithAttachedFile
             m_configuration.TemplateFileName = textMessageTemplateFileName.Text;
             m_configuration.InputFileName = textInputName.Text;
             m_configuration.MailSubject = textMailSubject.Text;
+            m_configuration.AdditionEmailAddressFileName = textAdditionEmailName.Text;
         }
 
         /// <summary>
@@ -124,6 +125,13 @@ namespace EmailWithAttachedFile
 
             isOk &= CheckFile(m_configuration.TemplateFileName, "Template File", ref errMsg);
             isOk &= CheckFile(m_configuration.InputFileName, "Input File", ref errMsg);
+            if (string.IsNullOrWhiteSpace(m_configuration.AdditionEmailAddressFileName))
+            {
+                if (MessageBox.Show("Do you wish to continue without an addtional email address file?", "Continue?", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.No)
+                    return false;
+            }
+            else
+                isOk &= CheckFile(m_configuration.AdditionEmailAddressFileName, "Additional Email Addresses", ref errMsg);
 
             if (!isOk)
                 MessageBox.Show(errMsg.ToString());
@@ -202,8 +210,34 @@ namespace EmailWithAttachedFile
         /// <param name="e"></param>
         private void Worker_DoWork(object sender, DoWorkEventArgs e)
         {
-            DataTable inputData = new DataTable();
-            ReadInputFile(out inputData);
+
+            AdditionalEmailAddrs addionalEmailAddrs= new AdditionalEmailAddrs();
+            StringBuilder msgParseAdditionalEmailAddress = new StringBuilder();
+            ResultObject resParseAdditionalEmailAddress = new ResultObject
+            {
+                NameComplete = string.Empty
+            };
+
+            if (!string.IsNullOrWhiteSpace(m_configuration.AdditionEmailAddressFileName))
+            {
+                // skipping this if the filename hasn't been filled in.
+                // There is an earlier check to see if users is OK with not adding additional email addrs
+                if (addionalEmailAddrs.ReadAdditionalEmailAddrFile(m_configuration.AdditionEmailAddressFileName, ref msgParseAdditionalEmailAddress))
+                {
+                    resParseAdditionalEmailAddress.IsOk = false;
+                    resParseAdditionalEmailAddress.ErrorMessage = "Parsed additional email addresses file: " + m_configuration.AdditionEmailAddressFileName;
+                }
+                else
+                {
+                    resParseAdditionalEmailAddress.IsOk = false;
+                    resParseAdditionalEmailAddress.ErrorMessage = msgParseAdditionalEmailAddress.ToString();
+                    (sender as BackgroundWorker).ReportProgress(0, resParseAdditionalEmailAddress);
+                    e.Result = resParseAdditionalEmailAddress; return;
+                }
+                e.Result = resParseAdditionalEmailAddress;
+                (sender as BackgroundWorker).ReportProgress(0, resParseAdditionalEmailAddress);
+            }
+            ReadInputFile(out DataTable inputData);
             if (m_bgWorker.CancellationPending)
                 return;
 
@@ -238,7 +272,10 @@ namespace EmailWithAttachedFile
                 else
                 {
                     // send the email
-                    results.IsOk = m_emailSender.SendMail(row["Name"].ToString(), row["Email"].ToString(), row["FileName"].ToString(), out string errMsg);
+                    string emailAddr = row["Email"].ToString();
+                    if (addionalEmailAddrs.GetAddtionalEmailAddresses(emailAddr, out string emailAddrAddtional))
+                        emailAddr = emailAddrAddtional;
+                    results.IsOk = m_emailSender.SendMail(row["Name"].ToString(), emailAddr, row["FileName"].ToString(), out string errMsg);
                     results.ErrorMessage = errMsg;
                     if (results.IsOk)
                     {
@@ -253,8 +290,8 @@ namespace EmailWithAttachedFile
                 results.NameComplete = row["Name"].ToString();
                 ++results.CountComplete;
                 int progressPercentage = Convert.ToInt32(((double)results.CountComplete / results.MaxCount) * 100);
-                (sender as BackgroundWorker).ReportProgress(progressPercentage, results);
                 e.Result = results;
+                (sender as BackgroundWorker).ReportProgress(progressPercentage, results);
 
             }
             // write out results file
@@ -272,12 +309,15 @@ namespace EmailWithAttachedFile
             progressBar.Value = e.ProgressPercentage;
             if (e.UserState is ResultObject results)
             {
-                progressText.Content = string.Format("{0} of {1} complete", results.CountComplete, results.MaxCount);
-                if (results.IsOk)
-                    Log("Sent: " + results.NameComplete);
+                if (string.IsNullOrEmpty(results.NameComplete))
+                    Log(results.ErrorMessage);
                 else
                 {
-                    Log("Not Sent: " + results.NameComplete + "\n\t" + results.ErrorMessage);
+                    progressText.Content = string.Format("{0} of {1} complete", results.CountComplete, results.MaxCount);
+                    if (results.IsOk)
+                        Log("Sent: " + results.NameComplete);
+                    else
+                        Log("Not Sent: " + results.NameComplete + "\n\t" + results.ErrorMessage);
                 }
             }
         }
@@ -372,6 +412,24 @@ namespace EmailWithAttachedFile
             {
                 string filename = dlg.FileName;
                 textInputName.Text = filename;
+            }
+        }
+
+        private void ButtonInputAdditionalEmailFile_Click(object sender, RoutedEventArgs e)
+        {
+            Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog
+            {
+
+                // Set filter for file extension and default file extension 
+                DefaultExt = ".csv",
+                Filter = "CSV Files (*.txt)|*.csv|All files (*.*)|*.*"
+            };
+            Nullable<bool> result = dlg.ShowDialog();
+
+            if (result == true)
+            {
+                string filename = dlg.FileName;
+                textAdditionEmailName.Text = filename;
             }
         }
 

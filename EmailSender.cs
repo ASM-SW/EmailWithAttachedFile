@@ -1,4 +1,4 @@
-﻿// Copyright © 2016-2020  ASM-SW
+﻿// Copyright © 2016-2022  ASM-SW
 //asmeyers@outlook.com  https://github.com/asm-sw
 
 using System;
@@ -110,7 +110,7 @@ namespace EmailWithAttachedFile
             }
             catch (Exception ex)
             {
-                errMsg = $"ERROR sending mail to: {name}\n\t{ex.Message}";
+                errMsg = $"ERROR sending mail to: {name}, {email}\n\t{ex.Message}";
                 return false;
             }
 

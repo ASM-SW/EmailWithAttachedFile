@@ -1,4 +1,4 @@
-﻿// Copyright © 2016-2020  ASM-SW
+﻿// Copyright © 2016-2022  ASM-SW
 //asmeyers@outlook.com  https://github.com/asm-sw
 using System;
 using System.Security;
@@ -20,6 +20,7 @@ namespace EmailWithAttachedFile
         public bool SmtpEnabledSSL { get; set; }
         public string TemplateFileName { get; set; }
         public string InputFileName { get; set; }
+        public string AdditionEmailAddressFileName { get; set; }
         public string MailSubject { get; set; }
 
         [XmlIgnore]
