@@ -1,4 +1,4 @@
-﻿// Copyright © 2016-2022  ASM-SW
+﻿// Copyright © 2016-2023  ASM-SW
 //asmeyers@outlook.com  https://github.com/asm-sw
 
 using System;
@@ -90,7 +90,11 @@ namespace EmailWithAttachedFile
 
                 string[] emailList = email.Split(';');
                 foreach (string emailItem in emailList)
-                    mail.To.Add(MailboxAddress.Parse(emailItem.Trim()));
+                {
+                    string item = emailItem.Trim();
+                    if (!string.IsNullOrWhiteSpace(item))
+                        mail.To.Add(MailboxAddress.Parse(item));
+                }
                 mail.Subject = m_config.MailSubject;
                 mail.Body = builder.ToMessageBody();
 
