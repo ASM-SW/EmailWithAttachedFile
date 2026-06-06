@@ -16,9 +16,13 @@
         </Style>
     </Window.Resources>
 
-    <Grid Height="650" VerticalAlignment="Top" Margin="0,0,8,0">
-
-        <Grid HorizontalAlignment="Left" Height="Auto" Margin="22,22,0,0" VerticalAlignment="Top" Width="490">
+    <Grid Height="650" VerticalAlignment="Top" Margin="10,0,10,0">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <Grid Grid.Row="0" HorizontalAlignment="Left" Height="Auto" Margin="22,10,0,0" VerticalAlignment="Top" Width="490">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
@@ -27,60 +31,43 @@
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-
             </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="75" />
+                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="17" />
             </Grid.ColumnDefinitions>
-            <Label Grid.Row="0" Grid.Column="0" Content="From Email Addr" HorizontalAlignment="Right"/>
-            <TextBox Grid.Row="0" Grid.Column="1"   Name="textFromEmail" Grid.ColumnSpan="3"/>
 
-            <Label Grid.Row="1" Grid.Column="0" Content="Mail Subject" HorizontalAlignment="Right"/>
-            <TextBox Grid.Row="1" Grid.Column="1"   Name="textMailSubject" Grid.ColumnSpan="3"/>
+            <Label Content="Email Address:" Grid.Row="0" Grid.Column="0" VerticalAlignment="Center"/>
+            <TextBox x:Name="textEmailAddress" Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2" Margin="5" IsReadOnly="True" Background="#F0F0F0"/>
 
-            <Label Grid.Row="2" Grid.Column="0" Content="Smtp Server" HorizontalAlignment="Right"/>
-            <TextBox Grid.Row="2" Grid.Column="1" Name="textSmtpServer" Grid.ColumnSpan="3"/>
+            <Label Content="Email Author:" Grid.Row="1" Grid.Column="0" VerticalAlignment="Center"/>
+            <TextBox x:Name="textEmailAuthor" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Margin="5" IsReadOnly="True" Background="#F0F0F0"/>
 
-            <Label Grid.Row="3" Grid.Column="0" Content="SMTP Port" HorizontalAlignment="Right"/>
-            <TextBox Grid.Row="3" Grid.Column="1"  Name="textSmtpPort" PreviewTextInput="IntegerOnly" DataObject.Pasting="IntegerOnlyPasting" Grid.ColumnSpan="3"/>
+            <Label Content="Template File:" Grid.Row="2" Grid.Column="0" VerticalAlignment="Center"/>
+            <TextBox x:Name="textTemplateFileName" Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" Margin="5" IsReadOnly="True" Background="#F0F0F0"/>
 
-            <Label Grid.Row="4" Grid.Column="0" Content="SMTP Enable SSL" HorizontalAlignment="Right"/>
-            <CheckBox Grid.Row="4" Grid.Column="1" Name="checkSmtpEnableSsl" Margin="5,5,-5,21" Grid.RowSpan="2"/>
-            <Label Grid.Row="4" Grid.Column="2" Content="Show Password" Grid.ColumnSpan="2" HorizontalAlignment="Right"/>
+            <Label Content="Input File:" Grid.Row="3" Grid.Column="0" VerticalAlignment="Center"/>
+            <TextBox x:Name="textInputFileName" Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" Margin="5" IsReadOnly="True" Background="#F0F0F0"/>
 
-            <Label Grid.Row="5" Grid.Column="0" Content="Password" HorizontalAlignment="Right"/>
-            <PasswordBox Grid.Row="5" Grid.Column="1" Grid.ColumnSpan="2"  Name="passwordBox"/>
-            <TextBox  Grid.Row="5" Grid.Column="1" Grid.ColumnSpan="2" Name="passwordTxtBox" Visibility="Collapsed" />
-            <CheckBox  Grid.Row="5" Grid.Column="3" Grid.ColumnSpan="3" Name="showPassword" Unchecked="ShowPassword_Unchecked"  Checked="ShowPassword_Checked" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            <Label Content="Mail Subject:" Grid.Row="4" Grid.Column="0" VerticalAlignment="Center"/>
+            <TextBox x:Name="textMailSubject" Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="2" Margin="5" IsReadOnly="True" Background="#F0F0F0"/>
 
-            <Button Grid.Row="6" Grid.Column="0" Content="Message Template" Name="butttonMessageTemplate" Margin="3" Click="ButtonMessageTemplate_Click" />
-            <TextBox Grid.Row="6" Grid.Column="1" Name="textMessageTemplateFileName" ScrollViewer.HorizontalScrollBarVisibility="Auto"  Grid.ColumnSpan="3"/>
+            <Label Content=" Attachments:" Grid.Row="5" Grid.Column="0" VerticalAlignment="Top" Margin="0,5,0,0"/>
+            <ListBox x:Name="listAttachments" Grid.Row="5" Grid.Column="1" Grid.ColumnSpan="2" Height="60" Margin="5" Background="#F0F0F0"/>
 
-            <Button Grid.Row="7" Grid.Column="0" Content="Input File" Name="butttonInputFile" Margin="3" Click="ButtonInputFile_Click" />
-            <TextBox Grid.Row="7" Grid.Column="1" Name="textInputName" ScrollViewer.HorizontalScrollBarVisibility="Auto"   Grid.ColumnSpan="3"/>
-
-            <Button Grid.Row="8" Grid.Column="0" Name="butttonAdditionalEmailFile" Width="100" Margin="3" Click="ButtonInputAdditionalEmailFile_Click">
-                <TextBlock TextWrapping="Wrap" Text="Additional Email Addresses File"/>
-            </Button>
-            <TextBox Grid.Row="8" Grid.Column="1" Name="textAdditionEmailName" ScrollViewer.HorizontalScrollBarVisibility="Auto"   Grid.ColumnSpan="3"/>
-
-            <Label Grid.Row="9" Grid.Column="0" />
-
-            <Button Grid.Row="10" Grid.Column="0" x:Name="buttonStart" Content="Start" Padding="5,1" Width="Auto" HorizontalAlignment="Center"  Click="ButtonStart_Click"/>
-            <Button Grid.Row="10" Grid.Column="1" x:Name="buttonStop" Content="Stop" Padding="5,1" Width="Auto" HorizontalAlignment="Right" Click="ButtonStop_Click" IsEnabled="False"/>
-
+            <StackPanel Orientation="Horizontal" Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="3" HorizontalAlignment="Center" Margin="0,10,0,0">
+                <Button x:Name="buttonSettings" Content="Settings" Padding="10,2" Margin="5" Click="ButtonSettings_Click"/>
+                <Button x:Name="buttonStart" Content="Start" Padding="10,2" Margin="5" Click="ButtonStart_Click" IsEnabled="False"/>
+                <Button x:Name="buttonStop" Content="Stop" Padding="10,2" Margin="5" Click="ButtonStop_Click" IsEnabled="False"/>
+            </StackPanel>
         </Grid>
-        <ProgressBar HorizontalAlignment="Left" Height="13" Margin="174,315,0,0" VerticalAlignment="Top" Width="323" Name="progressBar"/>
-        <Label Name="progressText" Content="" HorizontalAlignment="Left" Height="Auto" Margin="10,310,0,0" VerticalAlignment="Top" Width="159"/>
-        <ListBox x:Name="listLog" HorizontalContentAlignment="Stretch" Margin="5,350,0,-50" />
+        <DockPanel Grid.Row="1" Margin="0,10" LastChildFill="True">
+            <Label Name="progressText" Content="XX" Width="159" Margin="0,0,10,0" VerticalAlignment="Center"/>
+            <ProgressBar Height="13" VerticalAlignment="Center" Name="progressBar"/>
+        </DockPanel>
+        <ListBox Grid.Row="2" x:Name="listLog" HorizontalContentAlignment="Stretch" Margin="0,0,0,0" />
 
     </Grid>
 

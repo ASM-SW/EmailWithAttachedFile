@@ -2,20 +2,17 @@
 //asmeyers@outlook.com  https://github.com/asm-sw
 
 using Microsoft.VisualBasic.FileIO;
-using System;
 using System.ComponentModel;
 using System.Data;
 using System.IO;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Windows;
-using System.Windows.Input;
 
 namespace EmailWithAttachedFile
 {
     enum MsgStatus
     {
-        NotSent=0,
+        NotSent = 0,
         Sent,
         Error,
         NoEmailAddress
@@ -29,17 +26,32 @@ namespace EmailWithAttachedFile
         public MainWindow()
         {
             InitializeComponent();
+            InitializeSettings();
+        }
 
-            ConfigurationEmailWAF.DeSerialize(m_configuration.ConfigFileName, ref m_configuration);
+        private void InitializeSettings()
+        {
+            EmailSenderTest.EmailSettings.Init();
+            UpdateUiFromSettings();
+        }
 
-            textFromEmail.Text = m_configuration.FromEmail;
-            textSmtpServer.Text = m_configuration.SmtpServer;
-            textSmtpPort.Text = m_configuration.SmtpPort.ToString();
-            checkSmtpEnableSsl.IsChecked = m_configuration.SmtpEnabledSSL;
-            textMessageTemplateFileName.Text = m_configuration.TemplateFileName;
-            textInputName.Text = m_configuration.InputFileName;
-            textAdditionEmailName.Text = m_configuration.AdditionEmailAddressFileName;
-            textMailSubject.Text = m_configuration.MailSubject;
+        private void UpdateUiFromSettings()
+        {
+            textEmailAddress.Text = EmailSenderTest.EmailSettings.EmailAddress;
+            textEmailAuthor.Text = EmailSenderTest.EmailSettings.EmailAuthor;
+            textTemplateFileName.Text = EmailSenderTest.EmailSettings.TemplateFileName;
+            textInputFileName.Text = EmailSenderTest.EmailSettings.InputFileName;
+            textMailSubject.Text = EmailSenderTest.EmailSettings.MailSubject;
+
+            listAttachments.Items.Clear();
+            foreach (string file in EmailSenderTest.EmailSettings.Attachments)
+            {
+                listAttachments.Items.Add(file);
+            }
+
+            // Enable Start button only if the required settings are present
+            buttonStart.IsEnabled = !string.IsNullOrWhiteSpace(EmailSenderTest.EmailSettings.EmailAddress) &&
+                                   !string.IsNullOrWhiteSpace(EmailSenderTest.EmailSettings.TemplateFileName);
         }
 
         /// <summary>
@@ -62,42 +74,20 @@ namespace EmailWithAttachedFile
             public bool IsOk { get; set; }              // false indicates there was an error
         }
 
-        private ConfigurationEmailWAF m_configuration = new ConfigurationEmailWAF();
-        private BackgroundWorker m_bgWorker = new BackgroundWorker();
         private readonly EmailSender m_emailSender = new EmailSender();
         private string m_outputFileName = string.Empty;
+        private CancellationTokenSource? m_cts;
 
-        private void ButtonStart_Click(object sender, RoutedEventArgs e)
+        private async void ButtonStart_Click(object sender, RoutedEventArgs e)
         {
-            GetValuesFromForm();
-
             if (CheckConfiguration())
             {
                 buttonStart.IsEnabled = false;
                 buttonStop.IsEnabled = true;
                 listLog.Items.Clear();
 
-                StartupBackgroudWorker();
+                await StartEmailProcessAsync();
             }
-        }
-
-        /// <summary>
-        /// reads values from the form (user input) and puts them into the configuration object
-        /// </summary>
-        private void GetValuesFromForm()
-        {
-            m_configuration.FromEmail = textFromEmail.Text;
-            m_configuration.SmtpServer = textSmtpServer.Text;
-
-            int.TryParse(textSmtpPort.Text, out int port);
-
-            m_configuration.SmtpPort = port;
-            m_configuration.SmtpEnabledSSL = (bool)checkSmtpEnableSsl.IsChecked;
-            m_configuration.Password = passwordBox.SecurePassword;
-            m_configuration.TemplateFileName = textMessageTemplateFileName.Text;
-            m_configuration.InputFileName = textInputName.Text;
-            m_configuration.MailSubject = textMailSubject.Text;
-            m_configuration.AdditionEmailAddressFileName = textAdditionEmailName.Text;
         }
 
         /// <summary>
@@ -108,30 +98,9 @@ namespace EmailWithAttachedFile
         {
             bool isOk = true;
             StringBuilder errMsg = new StringBuilder("ERROR:\n");
-            isOk &= CheckString(m_configuration.FromEmail, "FromEmail", ref errMsg);
-            isOk &= CheckString(m_configuration.SmtpServer, "SMTP Server", ref errMsg);
-
-            if (m_configuration.SmtpPort < 1 || m_configuration.SmtpPort > 65535)
-            {
-                errMsg.AppendLine("\tSMTP Port number must be 1 to 65535");
-                isOk = false;
-            }
-
-            if (m_configuration.Password.Length < 1)
-            {
-                errMsg.AppendLine("\tPassword not entered");
-                isOk = false;
-            }
-
-            isOk &= CheckFile(m_configuration.TemplateFileName, "Template File", ref errMsg);
-            isOk &= CheckFile(m_configuration.InputFileName, "Input File", ref errMsg);
-            if (string.IsNullOrWhiteSpace(m_configuration.AdditionEmailAddressFileName))
-            {
-                if (MessageBox.Show("Do you wish to continue without an addtional email address file?", "Continue?", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.No)
-                    return false;
-            }
-            else
-                isOk &= CheckFile(m_configuration.AdditionEmailAddressFileName, "Additional Email Addresses", ref errMsg);
+            isOk &= CheckString(EmailSenderTest.EmailSettings.EmailAddress, "EmailAddress", ref errMsg);
+            isOk &= CheckFile(EmailSenderTest.EmailSettings.TemplateFileName, "Template File", ref errMsg);
+            isOk &= CheckFile(EmailSenderTest.EmailSettings.InputFileName, "Input File", ref errMsg);
 
             if (!isOk)
                 MessageBox.Show(errMsg.ToString());
@@ -181,144 +150,106 @@ namespace EmailWithAttachedFile
         /// <summary>
         /// Creates and setsups backgroud worker threader.  Inits mail sender.
         /// </summary>
-        private void StartupBackgroudWorker()
+        private async Task StartEmailProcessAsync()
         {
             progressBar.Value = 0;
             progressText.Content = string.Empty;
 
-            if (!m_emailSender.Init(ref m_configuration, out StringBuilder errMsg))
-            {
-                MessageBox.Show(errMsg.ToString());
-                return;
-            }
+            m_cts = new CancellationTokenSource();
+            Progress<ResultObject> progress = new Progress<ResultObject>(UpdateUiProgress);
 
-            m_bgWorker = new BackgroundWorker
+            try
             {
-                WorkerReportsProgress = true
-            };
-            m_bgWorker.DoWork += Worker_DoWork;
-            m_bgWorker.ProgressChanged += Worker_ProgressChanged;
-            m_bgWorker.RunWorkerCompleted += Worker_RunWorkerCompleted;
-            m_bgWorker.WorkerSupportsCancellation = true;
-            m_bgWorker.RunWorkerAsync(null);
+                (bool success, string errMsg) initResult = await m_emailSender.InitAsync();
+                if (!initResult.success)
+                {
+                    MessageBox.Show(initResult.errMsg);
+                    return;
+                }
+
+                if (!string.IsNullOrEmpty(initResult.errMsg))
+                    Log(initResult.errMsg);
+
+                await Task.Run(() => DoEmailWork(progress, m_cts.Token), m_cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                Log("Process was cancelled by the user.");
+            }
+            catch (Exception ex)
+            {
+                Log($"An unexpected error occurred: {ex.Message}");
+            }
+            finally
+            {
+                OnProcessCompleted();
+            }
         }
 
-        /// <summary>
-        /// Background worker thread.  Reads the input file.  Sends email to each row in the file.
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void Worker_DoWork(object sender, DoWorkEventArgs e)
+        private void DoEmailWork(IProgress<ResultObject> progress, CancellationToken token)
         {
-
-            AdditionalEmailAddrs addionalEmailAddrs= new AdditionalEmailAddrs();
+            AdditionalEmailAddrs additionalEmailAddrs = new AdditionalEmailAddrs();
             StringBuilder msgParseAdditionalEmailAddress = new StringBuilder();
-            ResultObject resParseAdditionalEmailAddress = new ResultObject
-            {
-                NameComplete = string.Empty
-            };
 
-            if (!string.IsNullOrWhiteSpace(m_configuration.AdditionEmailAddressFileName))
-            {
-                // skipping this if the filename hasn't been filled in.
-                // There is an earlier check to see if users is OK with not adding additional email addrs
-                if (addionalEmailAddrs.ReadAdditionalEmailAddrFile(m_configuration.AdditionEmailAddressFileName, ref msgParseAdditionalEmailAddress))
-                {
-                    resParseAdditionalEmailAddress.IsOk = false;
-                    resParseAdditionalEmailAddress.ErrorMessage = "Parsed additional email addresses file: " + m_configuration.AdditionEmailAddressFileName;
-                }
-                else
-                {
-                    resParseAdditionalEmailAddress.IsOk = false;
-                    resParseAdditionalEmailAddress.ErrorMessage = msgParseAdditionalEmailAddress.ToString();
-                    (sender as BackgroundWorker).ReportProgress(0, resParseAdditionalEmailAddress);
-                    e.Result = resParseAdditionalEmailAddress; return;
-                }
-                e.Result = resParseAdditionalEmailAddress;
-                (sender as BackgroundWorker).ReportProgress(0, resParseAdditionalEmailAddress);
-            }
             ReadInputFile(out DataTable inputData);
-            if (m_bgWorker.CancellationPending)
-                return;
-
             inputData.Columns.Add("Status", typeof(string));
             inputData.Columns.Add("Message", typeof(string));
-            foreach (DataRow row in inputData.Rows)
-            {
-                row["Status"] = MsgStatus.NotSent.ToString();
-                row["Message"] = string.Empty;
-            }
 
-            ResultObject results = new ResultObject
-            {
-                MaxCount = inputData.Rows.Count,
-                CountComplete = 0
-            };
+            ResultObject results = new ResultObject { MaxCount = inputData.Rows.Count };
 
             foreach (DataRow row in inputData.Rows)
             {
-                if (m_bgWorker.CancellationPending)
-                {
-                    e.Cancel = true;
-                    break;
-                }
-                if (string.IsNullOrWhiteSpace(row["Email"].ToString()))
+                token.ThrowIfCancellationRequested();
+
+                string name = row["Name"].ToString() ?? "Unknown";
+                string emailAddr = row["Email"].ToString() ?? string.Empty;
+
+                if (string.IsNullOrWhiteSpace(emailAddr))
                 {
                     results.IsOk = false;
                     results.ErrorMessage = "Email address is blank";
                     row["Status"] = MsgStatus.NoEmailAddress.ToString();
-                    row["Message"] = results.ErrorMessage;
                 }
                 else
                 {
-                    // send the email
-                    string emailAddr = row["Email"].ToString();
-                    if (addionalEmailAddrs.GetAddtionalEmailAddresses(emailAddr, out string emailAddrAddtional))
-                        emailAddr = emailAddrAddtional;
-                    results.IsOk = m_emailSender.SendMail(row["Name"].ToString(), emailAddr, row["FileName"].ToString(), out string errMsg);
-                    results.ErrorMessage = errMsg;
-                    if (results.IsOk)
-                    {
-                        row["Status"] = MsgStatus.Sent.ToString();
-                    }
-                    else
-                    {
-                        row["Status"] = MsgStatus.Error.ToString();
-                        row["Message"] = results.ErrorMessage.Replace('\n', ';');
-                    }
-                }
-                results.NameComplete = row["Name"].ToString();
-                ++results.CountComplete;
-                int progressPercentage = Convert.ToInt32(((double)results.CountComplete / results.MaxCount) * 100);
-                e.Result = results;
-                (sender as BackgroundWorker).ReportProgress(progressPercentage, results);
+                    if (additionalEmailAddrs.GetAddtionalEmailAddresses(emailAddr, out string emailAddrAdditional))
+                        emailAddr = emailAddrAdditional;
 
+                    // Note: We use .GetAwaiter().GetResult() here ONLY because we are inside Task.Run 
+                    // on a background thread where it is safe to block.
+                    (bool success, string errMsg) sendResult = m_emailSender.SendMailAsync(name, emailAddr, row["FileName"].ToString() ?? "").GetAwaiter().GetResult();
+
+                    results.IsOk = sendResult.success;
+                    results.ErrorMessage = sendResult.errMsg;
+                    row["Status"] = results.IsOk ? MsgStatus.Sent.ToString() : MsgStatus.Error.ToString();
+                }
+
+                row["Message"] = results.ErrorMessage.Replace('\n', ';');
+                results.NameComplete = name;
+                results.CountComplete++;
+                progress.Report(results);
             }
-            // write out results file
-            m_outputFileName = Path.Combine(Path.GetDirectoryName(m_configuration.InputFileName),
-                Path.GetFileNameWithoutExtension(m_configuration.InputFileName)) + "out.csv";
-            using (System.IO.StreamWriter file = new System.IO.StreamWriter(m_outputFileName))
-            {
-                file.Write(inputData.ToCSV());
-            }
+
+            m_outputFileName = Path.Combine(Path.GetDirectoryName(EmailSenderTest.EmailSettings.InputFileName) ?? "",
+                Path.GetFileNameWithoutExtension(EmailSenderTest.EmailSettings.InputFileName) + "out.csv");
+
+            File.WriteAllText(m_outputFileName, inputData.ToCSV());
         }
 
-
-        private void Worker_ProgressChanged(object sender, ProgressChangedEventArgs e)
+        private void UpdateUiProgress(ResultObject results)
         {
-            progressBar.Value = e.ProgressPercentage;
-            if (e.UserState is ResultObject results)
+            int progressPercentage = results.MaxCount > 0
+                ? Convert.ToInt32(((double)results.CountComplete / results.MaxCount) * 100)
+                : 0;
+
+            progressBar.Value = progressPercentage;
+
+            if (string.IsNullOrEmpty(results.NameComplete))
+                Log(results.ErrorMessage);
+            else
             {
-                if (string.IsNullOrEmpty(results.NameComplete))
-                    Log(results.ErrorMessage);
-                else
-                {
-                    progressText.Content = string.Format("{0} of {1} complete", results.CountComplete, results.MaxCount);
-                    if (results.IsOk)
-                        Log("Sent: " + results.NameComplete);
-                    else
-                        Log("Not Sent: " + results.NameComplete + "\n\t" + results.ErrorMessage);
-                }
+                progressText.Content = $"{results.CountComplete} of {results.MaxCount} complete";
+                Log(results.IsOk ? $"Sent: {results.NameComplete}" : $"Not Sent: {results.NameComplete}\n\t{results.ErrorMessage}");
             }
         }
 
@@ -329,108 +260,13 @@ namespace EmailWithAttachedFile
             listLog.ScrollIntoView(listLog.Items.CurrentItem);
         }
 
-        void Worker_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
+        private void OnProcessCompleted()
         {
             Log("************ DONE *********************");
             Log("Check results in: " + m_outputFileName);
             Log("***************************************");
             buttonStop.IsEnabled = false;
             buttonStart.IsEnabled = true;
-        }
-
-        private void ButtonMessageTemplate_Click(object sender, RoutedEventArgs e)
-        {
-            Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog
-            {
-                // Set filter for file extension and default file extension 
-                DefaultExt = ".txt",
-                Filter = "Text Files (*.txt)|*.txt|All files (*.*)|*.*"
-            };
-            Nullable<bool> result = dlg.ShowDialog();
-
-            if (result == true)
-            {
-                string filename = dlg.FileName;
-                textMessageTemplateFileName.Text = filename;
-            }
-        }
-
-        /// <summary>
-        /// Checks to see if input is an integer
-        /// </summary>
-        /// <param name="text"></param>
-        /// <returns></returns>
-        private static bool IsInteger(string text)
-        {
-            Regex regex = new Regex("[0-9]+");
-            return regex.IsMatch(text);
-        }
-
-        /// <summary>
-        /// limit input to a integer during paste event
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void IntegerOnlyPasting(object sender, DataObjectPastingEventArgs e)
-        {
-            if (e.DataObject.GetDataPresent(typeof(String)))
-            {
-                String text = (String)e.DataObject.GetData(typeof(String));
-                if (!IsInteger(text))
-                {
-                    e.CancelCommand();
-                }
-            }
-            else
-            {
-                e.CancelCommand();
-            }
-        }
-
-        /// <summary>
-        /// limit input to an integer during text entry
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void IntegerOnly(object sender, TextCompositionEventArgs e)
-        {
-            e.Handled = !IsInteger(e.Text);
-        }
-
-        private void ButtonInputFile_Click(object sender, RoutedEventArgs e)
-        {
-            Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog
-            {
-
-                // Set filter for file extension and default file extension 
-                DefaultExt = ".csv",
-                Filter = "CSV Files (*.txt)|*.csv|All files (*.*)|*.*"
-            };
-            Nullable<bool> result = dlg.ShowDialog();
-
-            if (result == true)
-            {
-                string filename = dlg.FileName;
-                textInputName.Text = filename;
-            }
-        }
-
-        private void ButtonInputAdditionalEmailFile_Click(object sender, RoutedEventArgs e)
-        {
-            Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog
-            {
-
-                // Set filter for file extension and default file extension 
-                DefaultExt = ".csv",
-                Filter = "CSV Files (*.txt)|*.csv|All files (*.*)|*.*"
-            };
-            Nullable<bool> result = dlg.ShowDialog();
-
-            if (result == true)
-            {
-                string filename = dlg.FileName;
-                textAdditionEmailName.Text = filename;
-            }
         }
 
         /// <summary>
@@ -442,19 +278,24 @@ namespace EmailWithAttachedFile
             inputData = new DataTable();
             try
             {
-                using (TextFieldParser csvReader = new TextFieldParser(m_configuration.InputFileName))
+                TextFieldParser csvReader = new(EmailSenderTest.EmailSettings.InputFileName);
+                csvReader.SetDelimiters(new string[] { "," });
+                csvReader.HasFieldsEnclosedInQuotes = true;
+
+                string[]? colFields = csvReader.ReadFields();
+                if (colFields != null)
                 {
-                    csvReader.SetDelimiters(new string[] { "," });
-                    csvReader.HasFieldsEnclosedInQuotes = true;
-                    string[] colFields = csvReader.ReadFields();
                     foreach (string item in colFields)
                     {
-                        DataColumn column = new DataColumn(item);
-                        inputData.Columns.Add(column);
+                        inputData.Columns.Add(item);
                     }
-                    while (!csvReader.EndOfData)
+                }
+
+                while (!csvReader.EndOfData)
+                {
+                    string[]? fieldData = csvReader.ReadFields();
+                    if (fieldData != null)
                     {
-                        string[] fieldData = csvReader.ReadFields();
                         inputData.Rows.Add(fieldData);
                     }
                 }
@@ -465,16 +306,19 @@ namespace EmailWithAttachedFile
             }
         }
 
+        private void ButtonSettings_Click(object sender, RoutedEventArgs e)
+        {
+            EmailSettingsWindow settingsWindow = new EmailSettingsWindow();
+            settingsWindow.Owner = this;
+            if (settingsWindow.ShowDialog() == true)
+            {
+                UpdateUiFromSettings();
+            }
+        }
+
         private void ButtonStop_Click(object sender, RoutedEventArgs e)
         {
-            // button enable handled in worker_RunWorkerCompleted()
-            //buttonStart.IsEnabled = true;
-            //buttonStop.IsEnabled = false;
-
-            if (m_bgWorker == null)
-                return;
-            if (m_bgWorker.IsBusy)
-                m_bgWorker.CancelAsync();
+            m_cts?.Cancel();
         }
 
         /// <summary>
@@ -484,24 +328,9 @@ namespace EmailWithAttachedFile
         /// <param name="e"></param>
         private void MainFormClosing(object sender, CancelEventArgs e)
         {
-            GetValuesFromForm();
-            m_configuration.Serialize(m_configuration.ConfigFileName);
+            EmailSenderTest.EmailSettings.Save();
         }
 
-        private void ShowPassword_Checked(object sender, RoutedEventArgs e)
-        {
-            passwordTxtBox.Text = passwordBox.Password;
-            passwordBox.Visibility = Visibility.Collapsed;
-            passwordTxtBox.Visibility = Visibility.Visible;
-        }
-
-        private void ShowPassword_Unchecked(object sender, RoutedEventArgs e)
-        {
-            passwordBox.Password = passwordTxtBox.Text;
-            passwordTxtBox.Text = "";
-            passwordTxtBox.Visibility = Visibility.Collapsed;
-            passwordBox.Visibility = Visibility.Visible;
-        }
         #region IDisposable Support
         private bool m_disposed = false; // To detect redundant calls
 
@@ -511,7 +340,7 @@ namespace EmailWithAttachedFile
             {
                 if (disposing)
                 {
-                    m_bgWorker.Dispose();
+                    m_cts?.Dispose();
                 }
 
                 // TODO: free unmanaged resources (unmanaged objects) and override a finalizer below.

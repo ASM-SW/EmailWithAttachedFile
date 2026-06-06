@@ -1,11 +1,11 @@
 ﻿// Copyright © 2016-2023  ASM-SW
 //asmeyers@outlook.com  https://github.com/asm-sw
 
-using System;
-using System.IO;
+using MailKit.Net.Smtp;
+using MailKit.Security;
+using Microsoft.Identity.Client;
 using MimeKit;
-using System.Text;
-using System.Net;
+using System.IO;
 
 namespace EmailWithAttachedFile
 {
@@ -15,52 +15,68 @@ namespace EmailWithAttachedFile
     /// </summary>
     class EmailSender
     {
-        public EmailSender() { }
-
-        ConfigurationEmailWAF m_config;
         bool m_init = false;
         string m_emailTemplate = string.Empty;
+        string m_accessToken = string.Empty;
         readonly string NAMETOKEN = "<NAME>";
-        NetworkCredential m_credential;
 
         /// <summary>
         /// Checks to see if the template file exists and reads it.
-        /// Checks the the token is in the template file, and displays a warning if it is missing.
+        /// Authenticates with Microsoft Graph/Office 365 using OAuth2.
         /// </summary>
-        /// <param name="config"></param>
-        /// <param name="errMsg"></param>
-        /// <returns></returns>
-        public bool Init(ref ConfigurationEmailWAF config, out StringBuilder errMsg)
+        public async Task<(bool success, string errMsg)> InitAsync()
         {
-            errMsg = new StringBuilder();
-            m_config = config;
-            m_init = true;
-            m_credential = new NetworkCredential(m_config.FromEmail, m_config.Password);
+            string errMsg = string.Empty;
 
-            if (!File.Exists(m_config.TemplateFileName))
+            // 1. Authenticate and get Access Token
+            try
             {
-                errMsg.AppendFormat("ERROR: Template file does not exist: {0}\n", m_config.TemplateFileName);
-                m_init = false;
+                string[] scopes = { "https://outlook.office.com/SMTP.Send" };
+                IPublicClientApplication pca = PublicClientApplicationBuilder.Create(EmailSenderTest.EmailSettings.ClientId)
+                    .WithAuthority(AzureCloudInstance.AzurePublic, EmailSenderTest.EmailSettings.TenantId)
+                    .WithRedirectUri("http://localhost")
+                    .Build();
+
+                // This will trigger the browser popup for interactive login
+                AuthenticationResult authResult = await pca.AcquireTokenInteractive(scopes).ExecuteAsync();
+                m_accessToken = authResult.AccessToken;
+            }
+            catch (MsalException msalEx)
+            {
+                errMsg = $"Authentication Error: {msalEx.Message}\n";
+                return (false, errMsg);
+            }
+            catch (Exception ex)
+            {
+                errMsg = $"General Error during Auth: {ex.Message}\n";
+                return (false, errMsg);
+            }
+
+            // 2. Read Template File
+            errMsg = string.Empty;
+
+            if (!File.Exists(EmailSenderTest.EmailSettings.TemplateFileName))
+            {
+                errMsg = $"ERROR: Template file does not exist: {EmailSenderTest.EmailSettings.TemplateFileName}\n";
+                return (false, errMsg);
             }
 
             try
             {
-                using (StreamReader streamReader = new StreamReader(m_config.TemplateFileName))
-                {
-                    m_emailTemplate = streamReader.ReadToEnd();
-                }
+                using StreamReader streamReader = new StreamReader(EmailSenderTest.EmailSettings.TemplateFileName);
+                m_emailTemplate = streamReader.ReadToEnd();
             }
             catch (Exception ex)
             {
-                errMsg.AppendFormat("ERROR: {0}\n", ex.Message);
-                m_init = false;
-                return m_init;
+                errMsg = $"ERROR: {ex.Message}\n";
+                return (false, errMsg);
             }
 
             if (m_emailTemplate.IndexOf(NAMETOKEN) < 0)
-                errMsg.AppendLine("WARNING:  template file does not contain the token \"<NAME>\"");
+                errMsg = "WARNING:  template file does not contain the token \"<NAME>\"\n";
 
-            return m_init;
+            m_init = true;
+            return (true, errMsg);
         }
 
         /// <summary>
@@ -69,15 +85,13 @@ namespace EmailWithAttachedFile
         /// <param name="name">This is used to replace the name token in the template file </param>
         /// <param name="email">email address list to send the email to.  Separate emails with a semicolon</param>
         /// <param name="fileName">filename to attach to the file</param>
-        /// <param name="errMsg">If the method returns false, contains a error message</param>
-        /// <returns>true if no errors occurred</returns>
-        public bool SendMail(string name, string email, string fileName, out string errMsg)
+        public async Task<(bool success, string errMsg)> SendMailAsync(string name, string email, string fileName)
         {
-            errMsg = string.Empty;
+            string errMsg = string.Empty;
             if (!m_init)
             {
                 errMsg = "ERROR:  Email Sender has not been initialized";
-                return false;
+                return (false, errMsg);
             }
             string body = m_emailTemplate.Replace(NAMETOKEN, name);
             try
@@ -85,8 +99,14 @@ namespace EmailWithAttachedFile
                 BodyBuilder builder = new BodyBuilder { TextBody = body };
                 builder.Attachments.Add(fileName);
 
+                foreach (string attachment in EmailSenderTest.EmailSettings.Attachments)
+                {
+                    if (System.IO.File.Exists(attachment))
+                        builder.Attachments.Add(attachment);
+                }
+
                 MimeKit.MimeMessage mail = new MimeMessage();
-                mail.From.Add(MailboxAddress.Parse(m_config.FromEmail));
+                mail.From.Add(new MailboxAddress(EmailSenderTest.EmailSettings.EmailAuthor, EmailSenderTest.EmailSettings.EmailAddress));
 
                 string[] emailList = email.Split(';');
                 foreach (string emailItem in emailList)
@@ -95,30 +115,27 @@ namespace EmailWithAttachedFile
                     if (!string.IsNullOrWhiteSpace(item))
                         mail.To.Add(MailboxAddress.Parse(item));
                 }
-                mail.Subject = m_config.MailSubject;
+                mail.Subject = EmailSenderTest.EmailSettings.MailSubject;
                 mail.Body = builder.ToMessageBody();
 
-                //todo reuse client, would have to process list of emails here, rather than one at a time.
-                // this might allow you to use one connection for multliple emails
-                using (MailKit.Net.Smtp.SmtpClient client = new MailKit.Net.Smtp.SmtpClient())
+                using (SmtpClient client = new SmtpClient())
                 {
-                    MailKit.Security.SecureSocketOptions secureOption = MailKit.Security.SecureSocketOptions.None;
-                    if (m_config.SmtpEnabledSSL)
-                        secureOption = MailKit.Security.SecureSocketOptions.Auto;
+                    await client.ConnectAsync("smtp.office365.com", 587, SecureSocketOptions.StartTls);
 
-                    client.Connect(m_config.SmtpServer, m_config.SmtpPort, secureOption);
-                    client.Authenticate(credentials: m_credential);
-                    client.Send(mail);
-                    client.Disconnect(true);
+                    SaslMechanismOAuth2 oauth2 = new SaslMechanismOAuth2(EmailSenderTest.EmailSettings.EmailAddress, m_accessToken);
+                    await client.AuthenticateAsync(oauth2);
+
+                    await client.SendAsync(mail);
+                    await client.DisconnectAsync(true);
                 }
             }
             catch (Exception ex)
             {
                 errMsg = $"ERROR sending mail to: {name}, {email}\n\t{ex.Message}";
-                return false;
+                return (false, errMsg);
             }
 
-            return true;
+            return (true, string.Empty);
         }
     }
 }

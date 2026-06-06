@@ -1,32 +1,14 @@
 ﻿// Copyright © 2020-2022  ASM-SW
 //asmeyers@outlook.com  https://github.com/asm-sw
 
-using FileHelpers;
+//using FileHelpers;
 using Microsoft.VisualBasic.FileIO;
 using System;
 using System.Collections.Generic;
 using System.Text;
-//using System.Windows;
 
 namespace EmailWithAttachedFile
 {
-    /// <summary>
-    /// This Class defines the columns in the IO file.  FileHelpers uses it to read and write the CSV file.
-    /// </summary>
-    [DelimitedRecord(","), IgnoreFirst]
-    class CustomerRecord
-    {
-        // NameLastFirst, Name,FileName, Email
-        [FieldQuoted('"', QuoteMode.OptionalForBoth, MultilineMode.NotAllow), FieldTrimAttribute(TrimMode.Both)]
-        public string NameLastFirst { get; set; }
-        [FieldQuoted('"', QuoteMode.OptionalForBoth, MultilineMode.NotAllow), FieldTrimAttribute(TrimMode.Both)]
-        public string Name { get; set; }
-        [FieldQuoted('"', QuoteMode.OptionalForBoth, MultilineMode.NotAllow), FieldTrimAttribute(TrimMode.Both)]
-        public string FileName { get; set; }
-        [FieldQuoted('"', QuoteMode.OptionalForBoth, MultilineMode.NotAllow), FieldTrimAttribute(TrimMode.Both)]
-        public string Email { get; set; }
-    }
-
     /// <summary>
     /// This is the class that does all of the work of reading in files, parsing and modifying the IO file.
     /// The IO file email column will be modified to hold a semicolon seprated list of email addresses.
@@ -64,65 +46,67 @@ namespace EmailWithAttachedFile
             bool res = true;
             try
             {
-                using (TextFieldParser csvReader = new TextFieldParser(filenameAdditionEmaillAddr))
+                using TextFieldParser csvReader = new (filenameAdditionEmaillAddr);
+                if (csvReader == null)
+                    return false;
+                csvReader.SetDelimiters(new string[] { "," });
+                csvReader.HasFieldsEnclosedInQuotes = true;
+                string[] colFields = csvReader.ReadFields() ?? new string[0];
+                if (colFields.Length == 0)
+                    return false;
+
+                int nameIdx = -1;  // Customer name
+                int mainEmailIdx = -1;  // this is the main email address and is used as the key in the dictionaray
+                res = FindColumn(errMessage, colFields, "Customer", ref nameIdx);
+                res &= FindColumn(errMessage, colFields, "Main Email", ref mainEmailIdx);
+
+                // find the columns in the data that contain additional email address
+                List<int> emailIdxs = new List<int>();
+                for (int idx = 0; idx < colFields.Length; idx++)
                 {
-                    csvReader.SetDelimiters(new string[] { "," });
-                    csvReader.HasFieldsEnclosedInQuotes = true;
-                    string[] colFields = csvReader.ReadFields();
+                    if (idx == mainEmailIdx)
+                        continue;
+                    if (colFields[idx].Contains("Email"))
+                        emailIdxs.Add(idx);
+                }
+                if (emailIdxs.Count < 1)
+                {
+                    res = false;
+                    errMessage.AppendFormat("No email addresses found in {0}\n", filenameAdditionEmaillAddr);
+                }
+                if (!res)
+                    return res;
 
-                    int nameIdx = -1;  // Customer name
-                    int mainEmailIdx = -1;  // this is the main email address and is used as the key in the dictionaray
-                    res = FindColumn(errMessage, colFields, "Customer", ref nameIdx);
-                    res &= FindColumn(errMessage, colFields, "Main Email", ref mainEmailIdx);
+                while (!csvReader.EndOfData)
+                {
+                    EmailInfo info = new EmailInfo();
+                    string[] fieldData = csvReader.ReadFields()?? new string[0];
+                    if (string.IsNullOrWhiteSpace(fieldData[mainEmailIdx]))
+                        continue;
 
-                    // find the columns in the data that contain additional email address
-                    List<int> emailIdxs = new List<int>();
-                    for (int idx = 0; idx < colFields.Length; idx++)
+                    StringBuilder additionalAddrs = new StringBuilder(128);
+                    additionalAddrs.Append(fieldData[mainEmailIdx]);
+                    bool bFoundAdditionalEmails = false;
+                    foreach (int index in emailIdxs)
                     {
-                        if (idx == mainEmailIdx)
-                            continue;
-                        if (colFields[idx].Contains("Email"))
-                            emailIdxs.Add(idx);
-                    }
-                    if (emailIdxs.Count < 1)
-                    {
-                        res = false;
-                        errMessage.AppendFormat("No email addresses found in {0}\n", filenameAdditionEmaillAddr);
-                    }
-                    if (!res)
-                        return res;
-
-                    while (!csvReader.EndOfData)
-                    {
-                        EmailInfo info = new EmailInfo();
-                        string[] fieldData = csvReader.ReadFields();
-                        if (string.IsNullOrWhiteSpace(fieldData[mainEmailIdx]))
-                            continue;
-
-                        StringBuilder additionalAddrs = new StringBuilder(128);
-                        additionalAddrs.Append(fieldData[mainEmailIdx]);
-                        bool bFoundAdditionalEmails = false;
-                        foreach (int index in emailIdxs)
+                        if (!string.IsNullOrWhiteSpace(fieldData[index]))
                         {
-                            if (!string.IsNullOrWhiteSpace(fieldData[index]))
-                            {
-                                bFoundAdditionalEmails = true;
-                                additionalAddrs.AppendFormat(";{0}", fieldData[index]);
-                            }
+                            bFoundAdditionalEmails = true;
+                            additionalAddrs.AppendFormat(";{0}", fieldData[index]);
                         }
-                        if (bFoundAdditionalEmails)
-                        {
-                            info.Name = fieldData[nameIdx];
-                            info.EmailAddrs = additionalAddrs.ToString();
+                    }
+                    if (bFoundAdditionalEmails)
+                    {
+                        info.Name = fieldData[nameIdx];
+                        info.EmailAddrs = additionalAddrs.ToString();
 
-                            try
-                            {
-                                m_additionEmails.Add(fieldData[mainEmailIdx], info);
-                            }
-                            catch (ArgumentException)
-                            {
-                                errMessage.AppendFormat("Duplicate email found for: {0} - {1}\n", info.Name, info.EmailAddrs);
-                            }
+                        try
+                        {
+                            m_additionEmails.Add(fieldData[mainEmailIdx], info);
+                        }
+                        catch (ArgumentException)
+                        {
+                            errMessage.AppendFormat("Duplicate email found for: {0} - {1}\n", info.Name, info.EmailAddrs);
                         }
                     }
                 }
@@ -162,7 +146,7 @@ namespace EmailWithAttachedFile
         /// <returns>true if additonal email addresses are found, false if not</returns>
         public bool GetAddtionalEmailAddresses(string mainEmailAddr, out string additionalEmailAddresses)
         {
-            if (m_additionEmails.TryGetValue(mainEmailAddr, out EmailInfo emailInfo))
+            if (m_additionEmails.TryGetValue(mainEmailAddr, out EmailInfo? emailInfo))
             {
                 additionalEmailAddresses = emailInfo.EmailAddrs;
                 return true;

@@ -9,10 +9,10 @@ public static class Extensions
     public static string ToCSV(this DataTable table)
     {
         // reference: adapted from  http://stackoverflow.com/questions/888181/convert-datatable-to-csv-stream
-        var result = new StringBuilder();
+        StringBuilder result = new();
         for (int i = 0; i < table.Columns.Count; i++)
         {
-            result.AppendFormat("\"{0}\"",table.Columns[i].ColumnName);
+            result.AppendFormat("\"{0}\"", table.Columns[i].ColumnName);
             result.Append(i == table.Columns.Count - 1 ? "\n" : ",");
         }
 
