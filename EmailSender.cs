@@ -26,57 +26,49 @@ namespace EmailWithAttachedFile
         /// </summary>
         public async Task<(bool success, string errMsg)> InitAsync()
         {
-            string errMsg = string.Empty;
-
-            // 1. Authenticate and get Access Token
+            //Authenticate and get Access Token
             try
             {
-                string[] scopes = { "https://outlook.office.com/SMTP.Send" };
-                IPublicClientApplication pca = PublicClientApplicationBuilder.Create(EmailSenderTest.EmailSettings.ClientId)
-                    .WithAuthority(AzureCloudInstance.AzurePublic, EmailSenderTest.EmailSettings.TenantId)
+                string[] scopes = ["https://outlook.office.com/SMTP.Send"];
+                IPublicClientApplication pca = PublicClientApplicationBuilder.Create(EmailSettings.ClientId)
+                    .WithAuthority(AzureCloudInstance.AzurePublic, EmailSettings.TenantId)
                     .WithRedirectUri("http://localhost")
                     .Build();
 
-                // This will trigger the browser popup for interactive login
-                AuthenticationResult authResult = await pca.AcquireTokenInteractive(scopes).ExecuteAsync();
+                AuthenticationResult authResult;
+                var accounts = await pca.GetAccountsAsync();
+
+                // If silent fails, then trigger the browser popup
+                authResult = await pca.AcquireTokenInteractive(scopes).ExecuteAsync();
                 m_accessToken = authResult.AccessToken;
             }
             catch (MsalException msalEx)
             {
-                errMsg = $"Authentication Error: {msalEx.Message}\n";
-                return (false, errMsg);
+                return (false, $"Authentication Error: {msalEx.Message}\n");
             }
             catch (Exception ex)
             {
-                errMsg = $"General Error during Auth: {ex.Message}\n";
-                return (false, errMsg);
+                return (false, $"General Error during Auth: {ex.Message}\n");
             }
 
-            // 2. Read Template File
-            errMsg = string.Empty;
-
-            if (!File.Exists(EmailSenderTest.EmailSettings.TemplateFileName))
+            if (!File.Exists(EmailSettings.TemplateFileName))
             {
-                errMsg = $"ERROR: Template file does not exist: {EmailSenderTest.EmailSettings.TemplateFileName}\n";
-                return (false, errMsg);
+                return (false, $"ERROR: Template file does not exist: {EmailSettings.TemplateFileName}\n");
             }
-
             try
             {
-                using StreamReader streamReader = new StreamReader(EmailSenderTest.EmailSettings.TemplateFileName);
+                using StreamReader streamReader = new(EmailSettings.TemplateFileName);
                 m_emailTemplate = streamReader.ReadToEnd();
             }
             catch (Exception ex)
             {
-                errMsg = $"ERROR: {ex.Message}\n";
-                return (false, errMsg);
+                return (false, $"ERROR: {ex.Message}\n");
             }
 
-            if (m_emailTemplate.IndexOf(NAMETOKEN) < 0)
-                errMsg = "WARNING:  template file does not contain the token \"<NAME>\"\n";
-
             m_init = true;
-            return (true, errMsg);
+            if (m_emailTemplate.IndexOf(NAMETOKEN) < 0)
+                return (true, "WARNING:  template file does not contain the token \"<NAME>\"\n");
+            return (true, string.Empty);
         }
 
         /// <summary>
@@ -87,52 +79,43 @@ namespace EmailWithAttachedFile
         /// <param name="fileName">filename to attach to the file</param>
         public async Task<(bool success, string errMsg)> SendMailAsync(string name, string email, string fileName)
         {
-            string errMsg = string.Empty;
             if (!m_init)
-            {
-                errMsg = "ERROR:  Email Sender has not been initialized";
-                return (false, errMsg);
-            }
-            string body = m_emailTemplate.Replace(NAMETOKEN, name);
+                return (false, "ERROR:  Email Sender has not been initialized");
+
             try
             {
-                BodyBuilder builder = new BodyBuilder { TextBody = body };
+                string body = m_emailTemplate.Replace(NAMETOKEN, name);
+                BodyBuilder builder = new() { TextBody = body };
                 builder.Attachments.Add(fileName);
 
-                foreach (string attachment in EmailSenderTest.EmailSettings.Attachments)
+                foreach (string attachment in EmailSettings.Attachments)
                 {
                     if (System.IO.File.Exists(attachment))
                         builder.Attachments.Add(attachment);
                 }
 
-                MimeKit.MimeMessage mail = new MimeMessage();
-                mail.From.Add(new MailboxAddress(EmailSenderTest.EmailSettings.EmailAuthor, EmailSenderTest.EmailSettings.EmailAddress));
+                MimeKit.MimeMessage mail = new();
+                mail.From.Add(new MailboxAddress(EmailSettings.EmailAuthor, EmailSettings.EmailAddress));
 
-                string[] emailList = email.Split(';');
+                string[] emailList = (email ?? string.Empty).Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
                 foreach (string emailItem in emailList)
-                {
-                    string item = emailItem.Trim();
-                    if (!string.IsNullOrWhiteSpace(item))
-                        mail.To.Add(MailboxAddress.Parse(item));
-                }
-                mail.Subject = EmailSenderTest.EmailSettings.MailSubject;
+                    mail.To.Add(MailboxAddress.Parse(emailItem));
+
+                mail.Subject = EmailSettings.MailSubject;
                 mail.Body = builder.ToMessageBody();
 
-                using (SmtpClient client = new SmtpClient())
-                {
-                    await client.ConnectAsync("smtp.office365.com", 587, SecureSocketOptions.StartTls);
+                using SmtpClient client = new();
+                await client.ConnectAsync("smtp.office365.com", 587, SecureSocketOptions.StartTls);
 
-                    SaslMechanismOAuth2 oauth2 = new SaslMechanismOAuth2(EmailSenderTest.EmailSettings.EmailAddress, m_accessToken);
-                    await client.AuthenticateAsync(oauth2);
+                SaslMechanismOAuth2 oauth2 = new(EmailSettings.EmailAddress, m_accessToken);
+                await client.AuthenticateAsync(oauth2);
 
-                    await client.SendAsync(mail);
-                    await client.DisconnectAsync(true);
-                }
+                await client.SendAsync(mail);
+                await client.DisconnectAsync(true);
             }
             catch (Exception ex)
             {
-                errMsg = $"ERROR sending mail to: {name}, {email}\n\t{ex.Message}";
-                return (false, errMsg);
+                return (false, $"ERROR sending mail to: {name}, {email}\n\t{ex.Message}");
             }
 
             return (true, string.Empty);

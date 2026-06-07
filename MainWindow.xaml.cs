@@ -3,7 +3,6 @@
 
 using Microsoft.VisualBasic.FileIO;
 using System.ComponentModel;
-using System.Data;
 using System.IO;
 using System.Text;
 using System.Windows;
@@ -16,6 +15,15 @@ namespace EmailWithAttachedFile
         Sent,
         Error,
         NoEmailAddress
+    }
+
+    public class EmailJob
+    {
+        public string Name { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string FileName { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+        public string Message { get; set; } = string.Empty;
     }
 
     /// <summary>
@@ -31,27 +39,30 @@ namespace EmailWithAttachedFile
 
         private void InitializeSettings()
         {
-            EmailSenderTest.EmailSettings.Init();
+            if (!EmailSettings.Init())
+            {
+                MessageBox.Show($"Error: {EmailSettings.Message}");
+            }
             UpdateUiFromSettings();
         }
 
         private void UpdateUiFromSettings()
         {
-            textEmailAddress.Text = EmailSenderTest.EmailSettings.EmailAddress;
-            textEmailAuthor.Text = EmailSenderTest.EmailSettings.EmailAuthor;
-            textTemplateFileName.Text = EmailSenderTest.EmailSettings.TemplateFileName;
-            textInputFileName.Text = EmailSenderTest.EmailSettings.InputFileName;
-            textMailSubject.Text = EmailSenderTest.EmailSettings.MailSubject;
+            textEmailAddress.Text = EmailSettings.EmailAddress;
+            textEmailAuthor.Text = EmailSettings.EmailAuthor;
+            textTemplateFileName.Text = EmailSettings.TemplateFileName;
+            textInputFileName.Text = EmailSettings.InputFileName;
+            textMailSubject.Text = EmailSettings.MailSubject;
 
             listAttachments.Items.Clear();
-            foreach (string file in EmailSenderTest.EmailSettings.Attachments)
+            foreach (string file in EmailSettings.Attachments)
             {
                 listAttachments.Items.Add(file);
             }
 
             // Enable Start button only if the required settings are present
-            buttonStart.IsEnabled = !string.IsNullOrWhiteSpace(EmailSenderTest.EmailSettings.EmailAddress) &&
-                                   !string.IsNullOrWhiteSpace(EmailSenderTest.EmailSettings.TemplateFileName);
+            buttonStart.IsEnabled = !string.IsNullOrWhiteSpace(EmailSettings.EmailAddress) &&
+                                   !string.IsNullOrWhiteSpace(EmailSettings.TemplateFileName);
         }
 
         /// <summary>
@@ -74,9 +85,9 @@ namespace EmailWithAttachedFile
             public bool IsOk { get; set; }              // false indicates there was an error
         }
 
-        private readonly EmailSender m_emailSender = new EmailSender();
+        private readonly EmailSender m_emailSender = new();
         private string m_outputFileName = string.Empty;
-        private CancellationTokenSource? m_cts;
+        private CancellationTokenSource? m_cancellationTokenSource;
 
         private async void ButtonStart_Click(object sender, RoutedEventArgs e)
         {
@@ -94,13 +105,13 @@ namespace EmailWithAttachedFile
         /// Checks that the user input is OK.  Puts up a message box on error
         /// </summary>
         /// <returns>false if there was an error</returns>
-        private bool CheckConfiguration()
+        private static bool CheckConfiguration()
         {
             bool isOk = true;
-            StringBuilder errMsg = new StringBuilder("ERROR:\n");
-            isOk &= CheckString(EmailSenderTest.EmailSettings.EmailAddress, "EmailAddress", ref errMsg);
-            isOk &= CheckFile(EmailSenderTest.EmailSettings.TemplateFileName, "Template File", ref errMsg);
-            isOk &= CheckFile(EmailSenderTest.EmailSettings.InputFileName, "Input File", ref errMsg);
+            StringBuilder errMsg = new("ERROR:\n");
+            isOk &= CheckString(EmailSettings.EmailAddress, "EmailAddress", ref errMsg);
+            isOk &= CheckFile(EmailSettings.TemplateFileName, "Template File", ref errMsg);
+            isOk &= CheckFile(EmailSettings.InputFileName, "Input File", ref errMsg);
 
             if (!isOk)
                 MessageBox.Show(errMsg.ToString());
@@ -115,7 +126,7 @@ namespace EmailWithAttachedFile
         /// <param name="name">user friendly name to put in error message</param>
         /// <param name="errMsg">string builder for error message.  Message are appended.</param>
         /// <returns>true if OK</returns>
-        private bool CheckFile(string fileName, string name, ref StringBuilder errMsg)
+        private static bool CheckFile(string fileName, string name, ref StringBuilder errMsg)
         {
             bool isOk = true;
             if (!CheckString(fileName, name, ref errMsg))
@@ -137,7 +148,7 @@ namespace EmailWithAttachedFile
         /// <param name="name">user friendly name to put in error message</param>
         /// <param name="errMsg">string builder for error message.  Message are appended.</param>
         /// <returns>true if OK</returns>
-        private bool CheckString(string value, string name, ref StringBuilder errMsg)
+        private static bool CheckString(string value, string name, ref StringBuilder errMsg)
         {
             if (string.IsNullOrWhiteSpace(value))
             {
@@ -155,22 +166,22 @@ namespace EmailWithAttachedFile
             progressBar.Value = 0;
             progressText.Content = string.Empty;
 
-            m_cts = new CancellationTokenSource();
-            Progress<ResultObject> progress = new Progress<ResultObject>(UpdateUiProgress);
+            m_cancellationTokenSource = new CancellationTokenSource();
+            Progress<ResultObject> progress = new(UpdateUiProgress);
 
             try
             {
-                (bool success, string errMsg) initResult = await m_emailSender.InitAsync();
-                if (!initResult.success)
+                (bool success, string errMsg) = await m_emailSender.InitAsync();
+                if (!success)
                 {
-                    MessageBox.Show(initResult.errMsg);
+                    MessageBox.Show(errMsg);
                     return;
                 }
 
-                if (!string.IsNullOrEmpty(initResult.errMsg))
-                    Log(initResult.errMsg);
+                if (!string.IsNullOrEmpty(errMsg))
+                    Log(errMsg);
 
-                await Task.Run(() => DoEmailWork(progress, m_cts.Token), m_cts.Token);
+                await Task.Run(() => DoEmailWorkAsync(progress, m_cancellationTokenSource.Token), m_cancellationTokenSource.Token);
             }
             catch (OperationCanceledException)
             {
@@ -186,54 +197,50 @@ namespace EmailWithAttachedFile
             }
         }
 
-        private void DoEmailWork(IProgress<ResultObject> progress, CancellationToken token)
+        private async Task DoEmailWorkAsync(IProgress<ResultObject> progress, CancellationToken token)
         {
-            AdditionalEmailAddrs additionalEmailAddrs = new AdditionalEmailAddrs();
-            StringBuilder msgParseAdditionalEmailAddress = new StringBuilder();
+            List<EmailJob> inputData = ReadInputFile();
+            ResultObject results = new() { MaxCount = inputData.Count };
 
-            ReadInputFile(out DataTable inputData);
-            inputData.Columns.Add("Status", typeof(string));
-            inputData.Columns.Add("Message", typeof(string));
-
-            ResultObject results = new ResultObject { MaxCount = inputData.Rows.Count };
-
-            foreach (DataRow row in inputData.Rows)
+            foreach (EmailJob job in inputData)
             {
                 token.ThrowIfCancellationRequested();
 
-                string name = row["Name"].ToString() ?? "Unknown";
-                string emailAddr = row["Email"].ToString() ?? string.Empty;
+                string name = job.Name;
+                string emailAddr = job.Email;
 
                 if (string.IsNullOrWhiteSpace(emailAddr))
                 {
                     results.IsOk = false;
                     results.ErrorMessage = "Email address is blank";
-                    row["Status"] = MsgStatus.NoEmailAddress.ToString();
+                    job.Status = MsgStatus.NoEmailAddress.ToString();
                 }
                 else
                 {
-                    if (additionalEmailAddrs.GetAddtionalEmailAddresses(emailAddr, out string emailAddrAdditional))
-                        emailAddr = emailAddrAdditional;
+                   (bool success, string errMsg) = await m_emailSender.SendMailAsync(name, emailAddr, job.FileName);
 
-                    // Note: We use .GetAwaiter().GetResult() here ONLY because we are inside Task.Run 
-                    // on a background thread where it is safe to block.
-                    (bool success, string errMsg) sendResult = m_emailSender.SendMailAsync(name, emailAddr, row["FileName"].ToString() ?? "").GetAwaiter().GetResult();
-
-                    results.IsOk = sendResult.success;
-                    results.ErrorMessage = sendResult.errMsg;
-                    row["Status"] = results.IsOk ? MsgStatus.Sent.ToString() : MsgStatus.Error.ToString();
+                    results.IsOk = success;
+                    results.ErrorMessage = errMsg;
+                    job.Status = results.IsOk ? MsgStatus.Sent.ToString() : MsgStatus.Error.ToString();
                 }
 
-                row["Message"] = results.ErrorMessage.Replace('\n', ';');
+                job.Message = results.ErrorMessage.Replace('\n', ';');
                 results.NameComplete = name;
                 results.CountComplete++;
                 progress.Report(results);
             }
 
-            m_outputFileName = Path.Combine(Path.GetDirectoryName(EmailSenderTest.EmailSettings.InputFileName) ?? "",
-                Path.GetFileNameWithoutExtension(EmailSenderTest.EmailSettings.InputFileName) + "out.csv");
+            m_outputFileName = Path.Combine(Path.GetDirectoryName(EmailSettings.InputFileName) ?? "",
+                Path.GetFileNameWithoutExtension(EmailSettings.InputFileName) + "out.csv");
 
-            File.WriteAllText(m_outputFileName, inputData.ToCSV());
+            try
+            {
+                await File.WriteAllTextAsync(m_outputFileName, inputData.ToCSV(), token);
+            }
+            catch (Exception ex)
+            {
+                Log($"Failed to write output file: {ex.Message}");
+            }
         }
 
         private void UpdateUiProgress(ResultObject results)
@@ -269,26 +276,34 @@ namespace EmailWithAttachedFile
             buttonStart.IsEnabled = true;
         }
 
+        private static readonly string[] _commaDelimiter = [","];
+
         /// <summary>
         /// Parser for reading the CSV input file.
         /// </summary>
-        /// <param name="inputData">DataTabel containing the read in data</param>
-        private void ReadInputFile(out DataTable inputData)
+        private static List<EmailJob> ReadInputFile()
         {
-            inputData = new DataTable();
+            List<EmailJob> jobs = [];
             try
             {
-                TextFieldParser csvReader = new(EmailSenderTest.EmailSettings.InputFileName);
-                csvReader.SetDelimiters(new string[] { "," });
+                using TextFieldParser csvReader = new(EmailSettings.InputFileName);
+                csvReader.SetDelimiters(_commaDelimiter);
                 csvReader.HasFieldsEnclosedInQuotes = true;
 
-                string[]? colFields = csvReader.ReadFields();
-                if (colFields != null)
+                string[] colFields = csvReader.ReadFields() ?? [];
+                int nameIdx = Array.IndexOf(colFields, "Name");
+                int emailIdx = Array.IndexOf(colFields, "Email");
+                int fileIdx = Array.IndexOf(colFields, "FileName");
+
+                List<string> missingColumns = [];
+                if (nameIdx == -1) missingColumns.Add("Name");
+                if (emailIdx == -1) missingColumns.Add("Email");
+                if (fileIdx == -1) missingColumns.Add("FileName");
+
+                if (missingColumns.Count > 0)
                 {
-                    foreach (string item in colFields)
-                    {
-                        inputData.Columns.Add(item);
-                    }
+                    MessageBox.Show($"The following required columns are missing from the input file: {string.Join(", ", missingColumns)}", "Input Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return jobs;
                 }
 
                 while (!csvReader.EndOfData)
@@ -296,7 +311,13 @@ namespace EmailWithAttachedFile
                     string[]? fieldData = csvReader.ReadFields();
                     if (fieldData != null)
                     {
-                        inputData.Rows.Add(fieldData);
+                        jobs.Add(new EmailJob
+                        {
+                            // existence of columns checked above, so using the index should be safe
+                            Name = fieldData[nameIdx],
+                            Email = fieldData[emailIdx],
+                            FileName = fieldData[fileIdx]
+                        });
                     }
                 }
             }
@@ -304,12 +325,15 @@ namespace EmailWithAttachedFile
             {
                 MessageBox.Show(ex.ToString());
             }
+            return jobs;
         }
 
         private void ButtonSettings_Click(object sender, RoutedEventArgs e)
         {
-            EmailSettingsWindow settingsWindow = new EmailSettingsWindow();
-            settingsWindow.Owner = this;
+            EmailSettingsWindow settingsWindow = new()
+            {
+                Owner = this
+            };
             if (settingsWindow.ShowDialog() == true)
             {
                 UpdateUiFromSettings();
@@ -318,7 +342,7 @@ namespace EmailWithAttachedFile
 
         private void ButtonStop_Click(object sender, RoutedEventArgs e)
         {
-            m_cts?.Cancel();
+            m_cancellationTokenSource?.Cancel();
         }
 
         /// <summary>
@@ -328,7 +352,7 @@ namespace EmailWithAttachedFile
         /// <param name="e"></param>
         private void MainFormClosing(object sender, CancelEventArgs e)
         {
-            EmailSenderTest.EmailSettings.Save();
+            EmailSettings.Save();
         }
 
         #region IDisposable Support
@@ -340,7 +364,7 @@ namespace EmailWithAttachedFile
             {
                 if (disposing)
                 {
-                    m_cts?.Dispose();
+                    m_cancellationTokenSource?.Dispose();
                 }
 
                 // TODO: free unmanaged resources (unmanaged objects) and override a finalizer below.
@@ -352,12 +376,14 @@ namespace EmailWithAttachedFile
 
         public void Dispose()
         {
-            // Do not change this code. Put cleanup code in Dispose(bool disposing) above.
             Dispose(true);
-            // TODO: uncomment the following line if the finalizer is overridden above.
-            // GC.SuppressFinalize(this);
+            GC.SuppressFinalize(this);
         }
         #endregion
 
+        private void ButtonExit_Click(object sender, RoutedEventArgs e)
+        {
+            Close();
+        }
     }
 }

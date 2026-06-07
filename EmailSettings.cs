@@ -1,8 +1,7 @@
-﻿using System.Text.Json;
-using System.IO;
-using System.Collections.Generic;
+﻿using System.IO;
+using System.Text.Json;
 
-namespace EmailSenderTest
+namespace EmailWithAttachedFile
 {
     /// <summary>
     /// This class reads in a json file with settings.  
@@ -20,10 +19,11 @@ namespace EmailSenderTest
             string InputFileName,
             string MailSubject,
             List<string> Attachments);
-        private Values _values = new(string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, new List<string>());
+        private Values _values = new(string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, []);
 
-        private static EmailSettings _instance = new();
+        private static readonly EmailSettings _instance = new();
         private static string _filePath = string.Empty;
+        public static string SettingsFileName { get => _filePath;}
 
         /// <summary>
         /// Read in the settings file
@@ -42,7 +42,8 @@ namespace EmailSenderTest
                 {
                     Directory.CreateDirectory(dataDir);
                 }
-                _filePath = Path.Combine(dataDir, exeName + ".json");
+                _filePath = Path.Combine(dataDir, exeName);
+                _filePath = Path.ChangeExtension(_filePath, "json");
             }
             catch (Exception ex)
             {
@@ -62,11 +63,11 @@ namespace EmailSenderTest
         public static string TemplateFileName => _instance._values.TemplateFileName;
         public static string InputFileName => _instance._values.InputFileName;
         public static string MailSubject => _instance._values.MailSubject;
-        public static List<string> Attachments => _instance._values.Attachments ?? new List<string>();
+        public static List<string> Attachments => _instance._values.Attachments ?? [];
 
         public static void Update(string tenantId, string clientId, string emailAddress, string emailAuthor, string templateFile, string inputFile, string subject, List<string> attachments)
         {
-            _instance._values = new Values(tenantId, clientId, emailAddress, emailAuthor, templateFile, inputFile, subject, attachments ?? new List<string>());
+            _instance._values = new Values(tenantId, clientId, emailAddress, emailAuthor, templateFile, inputFile, subject, attachments ?? []);
         }
 
         /// <summary>
@@ -130,7 +131,7 @@ namespace EmailSenderTest
             bool res = true;
             if (_values.Attachments == null)
             {
-                _values = _values with { Attachments = new List<string>() };
+                _values = _values with { Attachments = [] };
             }
 
             if (string.IsNullOrEmpty(_values.EmailAddress))

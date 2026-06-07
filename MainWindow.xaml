@@ -61,6 +61,7 @@
                 <Button x:Name="buttonSettings" Content="Settings" Padding="10,2" Margin="5" Click="ButtonSettings_Click"/>
                 <Button x:Name="buttonStart" Content="Start" Padding="10,2" Margin="5" Click="ButtonStart_Click" IsEnabled="False"/>
                 <Button x:Name="buttonStop" Content="Stop" Padding="10,2" Margin="5" Click="ButtonStop_Click" IsEnabled="False"/>
+                <Button x:Name="buttonExit" Content="Exit" Padding="10,2" Margin="5" Click="ButtonExit_Click" />
             </StackPanel>
         </Grid>
         <DockPanel Grid.Row="1" Margin="0,10" LastChildFill="True">

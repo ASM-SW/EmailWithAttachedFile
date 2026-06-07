@@ -1,30 +1,37 @@
-﻿using System.Data;
-// Copyright © 2016-2019  ASM-SW
+﻿// Copyright © 2016-2019  ASM-SW
 //asmeyers@outlook.com  https://github.com/asm-sw
 
+using System.Reflection;
 using System.Text;
 
-public static class Extensions
+namespace EmailWithAttachedFile
 {
-    public static string ToCSV(this DataTable table)
+    public static class Extensions
     {
-        // reference: adapted from  http://stackoverflow.com/questions/888181/convert-datatable-to-csv-stream
-        StringBuilder result = new();
-        for (int i = 0; i < table.Columns.Count; i++)
+        public static string ToCSV<T>(this IEnumerable<T> items)
         {
-            result.AppendFormat("\"{0}\"", table.Columns[i].ColumnName);
-            result.Append(i == table.Columns.Count - 1 ? "\n" : ",");
-        }
+            StringBuilder result = new();
+            PropertyInfo[] props = typeof(T).GetProperties(BindingFlags.Public | BindingFlags.Instance);
 
-        foreach (DataRow row in table.Rows)
-        {
-            for (int i = 0; i < table.Columns.Count; i++)
+            // Header
+            for (int i = 0; i < props.Length; i++)
             {
-                result.AppendFormat("\"{0}\"", row[i].ToString());
-                result.Append(i == table.Columns.Count - 1 ? "\n" : ",");
+                result.AppendFormat("\"{0}\"", props[i].Name);
+                result.Append(i == props.Length - 1 ? "\n" : ",");
             }
+
+            // Data
+            foreach (T item in items)
+            {
+                for (int i = 0; i < props.Length; i++)
+                {
+                    result.AppendFormat("\"{0}\"", props[i].GetValue(item, null));
+                    result.Append(i == props.Length - 1 ? "\n" : ",");
+                }
+            }
+
+            return result.ToString();
         }
 
-        return result.ToString();
     }
 }

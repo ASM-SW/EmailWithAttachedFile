@@ -1,8 +1,5 @@
-using System.Windows;
 using Microsoft.Win32;
-using EmailSenderTest;
-using System.Collections.Generic;
-using System.Linq;
+using System.Windows;
 
 namespace EmailWithAttachedFile
 {
@@ -23,17 +20,18 @@ namespace EmailWithAttachedFile
             txtTemplateFile.Text = EmailSettings.TemplateFileName;
             txtInputFile.Text = EmailSettings.InputFileName;
             txtMailSubject.Text = EmailSettings.MailSubject;
+            textSettingsFileName.Text = $"Settings file: {EmailSettings.SettingsFileName}";
 
-            lstAttachments.Items.Clear();
+            attachements.Items.Clear();
             foreach (string file in EmailSettings.Attachments)
             {
-                lstAttachments.Items.Add(file);
+                attachements.Items.Add(file);
             }
         }
 
         private void BtnBrowseTemplate_Click(object sender, RoutedEventArgs e)
         {
-            OpenFileDialog dlg = new OpenFileDialog
+            OpenFileDialog dlg = new()
             {
                 DefaultExt = ".txt",
                 Filter = "Text Files (*.txt)|*.txt|All files (*.*)|*.*"
@@ -44,7 +42,7 @@ namespace EmailWithAttachedFile
 
         private void BtnBrowseInput_Click(object sender, RoutedEventArgs e)
         {
-            OpenFileDialog dlg = new OpenFileDialog
+            OpenFileDialog dlg = new()
             {
                 DefaultExt = ".csv",
                 Filter = "CSV Files (*.csv)|*.csv|All files (*.*)|*.*"
@@ -55,26 +53,27 @@ namespace EmailWithAttachedFile
 
         private void BtnAddAttachment_Click(object sender, RoutedEventArgs e)
         {
-            OpenFileDialog dlg = new OpenFileDialog
+            OpenFileDialog dlg = new()
             {
                 Filter = "All files (*.*)|*.*"
             };
             if (dlg.ShowDialog() == true)
-                lstAttachments.Items.Add(dlg.FileName);
+                attachements.Items.Add(dlg.FileName);
         }
 
         private void BtnRemoveAttachment_Click(object sender, RoutedEventArgs e)
         {
-            if (lstAttachments.SelectedItem != null)
+            if (attachements.SelectedItem != null)
             {
-                lstAttachments.Items.Remove(lstAttachments.SelectedItem);
+                attachements.Items.Remove(attachements.SelectedItem);
             }
         }
 
         private void BtnSave_Click(object sender, RoutedEventArgs e)
         {
-            List<string> attachments = lstAttachments.Items.Cast<string>().ToList();
-
+#pragma warning disable IDE0305
+            List<string> attachments = attachements.Items.Cast<string>().ToList();
+#pragma warning restore
             EmailSettings.Update(
                 txtTenantId.Text,
                 txtClientId.Text,
