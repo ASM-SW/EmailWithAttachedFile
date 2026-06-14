@@ -2,6 +2,7 @@
 //asmeyers@outlook.com  https://github.com/asm-sw
 
 using Microsoft.VisualBasic.FileIO;
+using ASM_SW.WpfHelpViewer;
 using System.ComponentModel;
 using System.IO;
 using System.Text;
@@ -15,15 +16,6 @@ namespace EmailWithAttachedFile
         Sent,
         Error,
         NoEmailAddress
-    }
-
-    public class EmailJob
-    {
-        public string Name { get; set; } = string.Empty;
-        public string Email { get; set; } = string.Empty;
-        public string FileName { get; set; } = string.Empty;
-        public string Status { get; set; } = string.Empty;
-        public string Message { get; set; } = string.Empty;
     }
 
     /// <summary>
@@ -163,6 +155,7 @@ namespace EmailWithAttachedFile
         /// </summary>
         private async Task StartEmailProcessAsync()
         {
+            panelProgress.Visibility = Visibility.Visible;
             progressBar.Value = 0;
             progressText.Content = string.Empty;
 
@@ -202,44 +195,56 @@ namespace EmailWithAttachedFile
             List<EmailJob> inputData = ReadInputFile();
             ResultObject results = new() { MaxCount = inputData.Count };
 
-            foreach (EmailJob job in inputData)
-            {
-                token.ThrowIfCancellationRequested();
-
-                string name = job.Name;
-                string emailAddr = job.Email;
-
-                if (string.IsNullOrWhiteSpace(emailAddr))
-                {
-                    results.IsOk = false;
-                    results.ErrorMessage = "Email address is blank";
-                    job.Status = MsgStatus.NoEmailAddress.ToString();
-                }
-                else
-                {
-                   (bool success, string errMsg) = await m_emailSender.SendMailAsync(name, emailAddr, job.FileName);
-
-                    results.IsOk = success;
-                    results.ErrorMessage = errMsg;
-                    job.Status = results.IsOk ? MsgStatus.Sent.ToString() : MsgStatus.Error.ToString();
-                }
-
-                job.Message = results.ErrorMessage.Replace('\n', ';');
-                results.NameComplete = name;
-                results.CountComplete++;
-                progress.Report(results);
-            }
-
-            m_outputFileName = Path.Combine(Path.GetDirectoryName(EmailSettings.InputFileName) ?? "",
-                Path.GetFileNameWithoutExtension(EmailSettings.InputFileName) + "out.csv");
-
             try
             {
-                await File.WriteAllTextAsync(m_outputFileName, inputData.ToCSV(), token);
+                (bool connected, string connErr) = await m_emailSender.ConnectAsync(token);
+                if (!connected)
+                {
+                    results.IsOk = false;
+                    results.ErrorMessage = connErr;
+                    progress.Report(results);
+                    return;
+                }
+
+                foreach (EmailJob job in inputData)
+                {
+                    token.ThrowIfCancellationRequested();
+
+                    if (string.IsNullOrWhiteSpace(job.Email))
+                    {
+                        results.IsOk = false;
+                        results.ErrorMessage = "Email address is blank";
+                        job.Status = MsgStatus.NoEmailAddress.ToString();
+                    }
+                    else
+                    {
+                        (bool success, string errMsg) = await m_emailSender.SendMailAsync(job, token);
+
+                        results.IsOk = success;
+                        results.ErrorMessage = errMsg;
+                        job.Status = results.IsOk ? MsgStatus.Sent.ToString() : MsgStatus.Error.ToString();
+                    }
+
+                    job.Message = results.ErrorMessage.Replace('\n', ';');
+                    results.NameComplete = job.Name;
+                    results.CountComplete++;
+                    progress.Report(results);
+                }
             }
-            catch (Exception ex)
+            finally
             {
-                Log($"Failed to write output file: {ex.Message}");
+                await m_emailSender.DisconnectAsync();
+                m_outputFileName = Path.Combine(Path.GetDirectoryName(EmailSettings.InputFileName) ?? "",
+                                    Path.GetFileNameWithoutExtension(EmailSettings.InputFileName) + "_out.csv");
+                try
+                {
+                    // Use CancellationToken.None to ensure the file is saved even if the process was cancelled
+                    await File.WriteAllTextAsync(m_outputFileName, inputData.ToCSV(), CancellationToken.None);
+                }
+                catch (Exception ex)
+                {
+                    Dispatcher.Invoke(() => Log($"Failed to write output file: {ex.Message}"));
+                }
             }
         }
 
@@ -269,6 +274,7 @@ namespace EmailWithAttachedFile
 
         private void OnProcessCompleted()
         {
+            panelProgress.Visibility = Visibility.Hidden;
             Log("************ DONE *********************");
             Log("Check results in: " + m_outputFileName);
             Log("***************************************");
@@ -303,7 +309,7 @@ namespace EmailWithAttachedFile
                 if (missingColumns.Count > 0)
                 {
                     MessageBox.Show($"The following required columns are missing from the input file: {string.Join(", ", missingColumns)}", "Input Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                    return jobs;
+                    return [];
                 }
 
                 while (!csvReader.EndOfData)
@@ -384,6 +390,13 @@ namespace EmailWithAttachedFile
         private void ButtonExit_Click(object sender, RoutedEventArgs e)
         {
             Close();
+        }
+
+        private void ButtonHelp_Click(object sender, RoutedEventArgs e)
+        {
+            string helpPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "help.md");
+            MarkdownHelpWindow HelpViewer = new (helpPath);
+            HelpViewer.Show();
         }
     }
 }

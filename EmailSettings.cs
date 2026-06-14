@@ -4,13 +4,14 @@ using System.Text.Json;
 namespace EmailWithAttachedFile
 {
     /// <summary>
-    /// This class reads in a json file with settings.  
-    /// Call EmailSettings.Init("filename) to read in the settings.
-    /// Check the result.  If the result is false, get the error message from EmailSettings.Message.
+    /// This class is a singelton.  All access is through Static methods.
+    /// Call EmailSettings.Init() to initialize it.
+    /// Check the return value of Init to see if it initialized.
+    /// EmailSettings.Message will contain an error message if the init failed.
     /// </summary>
     public class EmailSettings
     {
-        public record Values(
+        private record Values(
             string TenantId, 
             string ClientId, 
             string EmailAddress, 
@@ -97,7 +98,6 @@ namespace EmailWithAttachedFile
         }
 
         private readonly JsonSerializerOptions options = new() { PropertyNameCaseInsensitive = true, WriteIndented = true };
-
         private EmailSettings() { }
         private bool InitSettings(string settingFileName)
         {

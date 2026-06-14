@@ -5,25 +5,22 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:EmailWithAttachedFile"
         mc:Ignorable="d"
-        Title="Email With Attached File" Height="750" Width="540" Closing="MainFormClosing">
+        Title="Email With Attached File" Height="750" Width="550" Closing="MainFormClosing" 
+        FontWeight="DemiBold" FontSize="12" ResizeMode="CanResize">
 
     <Window.Resources>
-        <Style x:Key="StdButton" TargetType="Button">
-            <Setter Property="Width" Value="100"/>
-            <!--<Setter Property="Control.Background" Value="AliceBlue"/>-->
-            <Setter Property="Control.FontFamily" Value="Calibri" />
-            <Setter Property="Control.FontWeight" Value="Bold" />
-        </Style>
+
     </Window.Resources>
 
-    <Grid Height="650" VerticalAlignment="Top" Margin="10,0,10,0">
+    <Grid Margin="10,0,10,10">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
-        <Grid Grid.Row="0" HorizontalAlignment="Left" Height="Auto" Margin="22,10,0,0" VerticalAlignment="Top" Width="490">
+        <Grid Grid.Row="0" HorizontalAlignment="Left" Height="Auto" Margin="5" VerticalAlignment="Top" Width="500">
             <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
@@ -36,36 +33,39 @@
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="17" />
+
             </Grid.ColumnDefinitions>
 
-            <Label Content="Email Address:" Grid.Row="0" Grid.Column="0" VerticalAlignment="Center"/>
-            <TextBox x:Name="textEmailAddress" Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2" Margin="5" IsReadOnly="True" Background="#F0F0F0"/>
+            <Button Grid.Row="0" Grid.Column="0" x:Name="buttonSettings" Content="Change Settings" Padding="3,0" Margin="0,0,0,10" Click="ButtonSettings_Click"/>
+            <Button Grid.Row="0" Grid.Column="2" Grid.ColumnSpan="2" Content="Help" Click="ButtonHelp_Click" Margin="5,0,5,10" Padding="3,0" />
 
-            <Label Content="Email Author:" Grid.Row="1" Grid.Column="0" VerticalAlignment="Center"/>
-            <TextBox x:Name="textEmailAuthor" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Margin="5" IsReadOnly="True" Background="#F0F0F0"/>
+            <Label Content="Email Address:" Grid.Row="1" Grid.Column="0" VerticalAlignment="Center"/>
+            <TextBox x:Name="textEmailAddress" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3" Margin="5" IsReadOnly="True" Background="#F0F0F0"/>
 
-            <Label Content="Template File:" Grid.Row="2" Grid.Column="0" VerticalAlignment="Center"/>
-            <TextBox x:Name="textTemplateFileName" Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" Margin="5" IsReadOnly="True" Background="#F0F0F0"/>
+            <Label Content="Email Author:" Grid.Row="2" Grid.Column="0" VerticalAlignment="Center"/>
+            <TextBox x:Name="textEmailAuthor" Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="3" Margin="5" IsReadOnly="True" Background="#F0F0F0"/>
 
-            <Label Content="Input File:" Grid.Row="3" Grid.Column="0" VerticalAlignment="Center"/>
-            <TextBox x:Name="textInputFileName" Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" Margin="5" IsReadOnly="True" Background="#F0F0F0"/>
+            <Label Content="Template File:" Grid.Row="3" Grid.Column="0" VerticalAlignment="Center"/>
+            <TextBox x:Name="textTemplateFileName" Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="3" Margin="5" IsReadOnly="True" Background="#F0F0F0"/>
 
-            <Label Content="Mail Subject:" Grid.Row="4" Grid.Column="0" VerticalAlignment="Center"/>
-            <TextBox x:Name="textMailSubject" Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="2" Margin="5" IsReadOnly="True" Background="#F0F0F0"/>
+            <Label Content="Input File:" Grid.Row="4" Grid.Column="0" VerticalAlignment="Center"/>
+            <TextBox x:Name="textInputFileName" Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="3" Margin="5" IsReadOnly="True" Background="#F0F0F0"/>
 
-            <Label Content=" Attachments:" Grid.Row="5" Grid.Column="0" VerticalAlignment="Top" Margin="0,5,0,0"/>
-            <ListBox x:Name="listAttachments" Grid.Row="5" Grid.Column="1" Grid.ColumnSpan="2" Height="60" Margin="5" Background="#F0F0F0"/>
+            <Label Content="Mail Subject:" Grid.Row="5" Grid.Column="0" VerticalAlignment="Center"/>
+            <TextBox x:Name="textMailSubject" Grid.Row="5" Grid.Column="1" Grid.ColumnSpan="3" Margin="5" IsReadOnly="True" Background="#F0F0F0"/>
 
-            <StackPanel Orientation="Horizontal" Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="3" HorizontalAlignment="Center" Margin="0,10,0,0">
-                <Button x:Name="buttonSettings" Content="Settings" Padding="10,2" Margin="5" Click="ButtonSettings_Click"/>
+            <Label Content=" Attachments:" Grid.Row="6" Grid.Column="0" VerticalAlignment="Top" Margin="0,5,0,0"/>
+            <ListBox x:Name="listAttachments" Grid.Row="6" Grid.Column="1" Grid.ColumnSpan="3" Height="60" Margin="5" Background="#F0F0F0"/>
+
+            <StackPanel Orientation="Horizontal" Grid.Row="7" Grid.Column="1" HorizontalAlignment="Right" Margin="0,1,140,0">
                 <Button x:Name="buttonStart" Content="Start" Padding="10,2" Margin="5" Click="ButtonStart_Click" IsEnabled="False"/>
                 <Button x:Name="buttonStop" Content="Stop" Padding="10,2" Margin="5" Click="ButtonStop_Click" IsEnabled="False"/>
-                <Button x:Name="buttonExit" Content="Exit" Padding="10,2" Margin="5" Click="ButtonExit_Click" />
             </StackPanel>
+            <Button Grid.Row="7" Grid.Column="3" x:Name="buttonExit" Content="Exit" Margin="5,0"
+                    Padding="3,0" Click="ButtonExit_Click" Height="20"/>
         </Grid>
-        <DockPanel Grid.Row="1" Margin="0,10" LastChildFill="True">
-            <Label Name="progressText" Content="XX" Width="159" Margin="0,0,10,0" VerticalAlignment="Center"/>
+        <DockPanel x:Name="panelProgress" Grid.Row="1" Margin="0,10" LastChildFill="True" Visibility="HIdden">
+            <Label Name="progressText" Width="159" Margin="0,0,10,0" VerticalAlignment="Center"/>
             <ProgressBar Height="13" VerticalAlignment="Center" Name="progressBar"/>
         </DockPanel>
         <ListBox Grid.Row="2" x:Name="listLog" HorizontalContentAlignment="Stretch" Margin="0,0,0,0" />

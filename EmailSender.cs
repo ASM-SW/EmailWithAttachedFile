@@ -1,4 +1,4 @@
-﻿// Copyright © 2016-2023  ASM-SW
+﻿﻿// Copyright © 2016-2023  ASM-SW
 //asmeyers@outlook.com  https://github.com/asm-sw
 
 using MailKit.Net.Smtp;
@@ -9,6 +9,16 @@ using System.IO;
 
 namespace EmailWithAttachedFile
 {
+    public class EmailJob
+    {
+        public string Name { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string FileName { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+        public string Message { get; set; } = string.Empty;
+    }
+
+
     /// <summary>
     /// This class sends email with an attached file.  The email is based on a text template file.  The attached file can be any file type.
     /// The token:  "<NAME>" in the template file is replaced with the a string passed into the sender.
@@ -18,6 +28,7 @@ namespace EmailWithAttachedFile
         bool m_init = false;
         string m_emailTemplate = string.Empty;
         string m_accessToken = string.Empty;
+        SmtpClient? m_smtpClient;
         readonly string NAMETOKEN = "<NAME>";
 
         /// <summary>
@@ -72,21 +83,53 @@ namespace EmailWithAttachedFile
         }
 
         /// <summary>
+        /// Establishes a connection to the SMTP server and authenticates.
+        /// </summary>
+        public async Task<(bool success, string errMsg)> ConnectAsync(CancellationToken token = default)
+        {
+            try
+            {
+                m_smtpClient = new SmtpClient();
+                await m_smtpClient.ConnectAsync("smtp.office365.com", 587, SecureSocketOptions.StartTls, token);
+
+                SaslMechanismOAuth2 oauth2 = new(EmailSettings.EmailAddress, m_accessToken);
+                await m_smtpClient.AuthenticateAsync(oauth2, token);
+                return (true, string.Empty);
+            }
+            catch (Exception ex)
+            {
+                return (false, $"Failed to connect to SMTP server: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Disconnects and cleans up the SMTP client.
+        /// </summary>
+        public async Task DisconnectAsync()
+        {
+            if (m_smtpClient != null)
+            {
+                if (m_smtpClient.IsConnected)
+                    await m_smtpClient.DisconnectAsync(true);
+                m_smtpClient.Dispose();
+                m_smtpClient = null;
+            }
+        }
+
+        /// <summary>
         /// Sends an email
         /// </summary>
-        /// <param name="name">This is used to replace the name token in the template file </param>
-        /// <param name="email">email address list to send the email to.  Separate emails with a semicolon</param>
-        /// <param name="fileName">filename to attach to the file</param>
-        public async Task<(bool success, string errMsg)> SendMailAsync(string name, string email, string fileName)
+        /// <param name="job">The email job containing recipient details and attachment</param>
+        public async Task<(bool success, string errMsg)> SendMailAsync(EmailJob job, CancellationToken token = default)
         {
-            if (!m_init)
-                return (false, "ERROR:  Email Sender has not been initialized");
+            if (!m_init || m_smtpClient == null || !m_smtpClient.IsConnected)
+                return (false, "ERROR: Email Sender is not connected or initialized");
 
             try
             {
-                string body = m_emailTemplate.Replace(NAMETOKEN, name);
+                string body = m_emailTemplate.Replace(NAMETOKEN, job.Name);
                 BodyBuilder builder = new() { TextBody = body };
-                builder.Attachments.Add(fileName);
+                builder.Attachments.Add(job.FileName);
 
                 foreach (string attachment in EmailSettings.Attachments)
                 {
@@ -97,25 +140,18 @@ namespace EmailWithAttachedFile
                 MimeKit.MimeMessage mail = new();
                 mail.From.Add(new MailboxAddress(EmailSettings.EmailAuthor, EmailSettings.EmailAddress));
 
-                string[] emailList = (email ?? string.Empty).Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                string[] emailList = (job.Email ?? string.Empty).Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
                 foreach (string emailItem in emailList)
                     mail.To.Add(MailboxAddress.Parse(emailItem));
 
                 mail.Subject = EmailSettings.MailSubject;
                 mail.Body = builder.ToMessageBody();
 
-                using SmtpClient client = new();
-                await client.ConnectAsync("smtp.office365.com", 587, SecureSocketOptions.StartTls);
-
-                SaslMechanismOAuth2 oauth2 = new(EmailSettings.EmailAddress, m_accessToken);
-                await client.AuthenticateAsync(oauth2);
-
-                await client.SendAsync(mail);
-                await client.DisconnectAsync(true);
+                await m_smtpClient.SendAsync(mail, token);
             }
             catch (Exception ex)
             {
-                return (false, $"ERROR sending mail to: {name}, {email}\n\t{ex.Message}");
+                return (false, $"ERROR sending mail to: {job.Name}, {job.Email}\n\t{ex.Message}");
             }
 
             return (true, string.Empty);
