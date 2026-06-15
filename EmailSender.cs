@@ -140,9 +140,10 @@ namespace EmailWithAttachedFile
                 MimeKit.MimeMessage mail = new();
                 mail.From.Add(new MailboxAddress(EmailSettings.EmailAuthor, EmailSettings.EmailAddress));
 
-                string[] emailList = (job.Email ?? string.Empty).Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-                foreach (string emailItem in emailList)
-                    mail.To.Add(MailboxAddress.Parse(emailItem));
+                char[] delimiters = [',', ';', ' '];
+                string[] emailList = (job.Email ?? string.Empty).Split(delimiters, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                foreach (string emailAddress in emailList)
+                    mail.To.Add(MailboxAddress.Parse(emailAddress));
 
                 mail.Subject = EmailSettings.MailSubject;
                 mail.Body = builder.ToMessageBody();
