@@ -1,12 +1,13 @@
-﻿// Copyright © 2016-2022  ASM-SW
+﻿﻿// Copyright © 2016-2022  ASM-SW
 //asmeyers@outlook.com  https://github.com/asm-sw
 
-using Microsoft.VisualBasic.FileIO;
 using ASM_SW.WpfHelpViewer;
+using Microsoft.VisualBasic.FileIO;
 using System.ComponentModel;
 using System.IO;
 using System.Text;
 using System.Windows;
+using DialogCentered = ASM_SW.UtilitiesCSharp.DialogCentered;
 
 namespace EmailWithAttachedFile
 {
@@ -33,7 +34,7 @@ namespace EmailWithAttachedFile
         {
             if (!EmailSettings.Init())
             {
-                MessageBox.Show($"Error: {EmailSettings.Message}");
+                DialogCentered.ShowDialog($"Error: {EmailSettings.Message}", string.Empty);
             }
             UpdateUiFromSettings();
         }
@@ -106,7 +107,7 @@ namespace EmailWithAttachedFile
             isOk &= CheckFile(EmailSettings.InputFileName, "Input File", ref errMsg);
 
             if (!isOk)
-                MessageBox.Show(errMsg.ToString());
+                DialogCentered.ShowDialog(errMsg.ToString(), string.Empty);
 
             return isOk;
         }
@@ -167,7 +168,7 @@ namespace EmailWithAttachedFile
                 (bool success, string errMsg) = await m_emailSender.InitAsync();
                 if (!success)
                 {
-                    MessageBox.Show(errMsg);
+                    DialogCentered.ShowDialog(errMsg, string.Empty);
                     return;
                 }
 
@@ -192,7 +193,15 @@ namespace EmailWithAttachedFile
 
         private async Task DoEmailWorkAsync(IProgress<ResultObject> progress, CancellationToken token)
         {
-            List<EmailJob> inputData = ReadInputFile();
+            List<EmailJob> inputData = [];
+            bool resReadInput = ReadInputFile(ref inputData);
+            if(inputData.Count == 0)
+            {
+                // resReadInput true means no errors reading the file
+                if(resReadInput) 
+                    Dispatcher.Invoke(() => DialogCentered.ShowDialog("There are no input records in the CSV input file.", string.Empty));
+                return;
+            }
             ResultObject results = new() { MaxCount = inputData.Count };
 
             try
@@ -287,9 +296,9 @@ namespace EmailWithAttachedFile
         /// <summary>
         /// Parser for reading the CSV input file.
         /// </summary>
-        private static List<EmailJob> ReadInputFile()
+        private static bool ReadInputFile(ref List<EmailJob> jobs)
         {
-            List<EmailJob> jobs = [];
+            jobs = [];
             try
             {
                 using TextFieldParser csvReader = new(EmailSettings.InputFileName);
@@ -297,19 +306,21 @@ namespace EmailWithAttachedFile
                 csvReader.HasFieldsEnclosedInQuotes = true;
 
                 string[] colFields = csvReader.ReadFields() ?? [];
-                int nameIdx = Array.IndexOf(colFields, "Name");
-                int emailIdx = Array.IndexOf(colFields, "Email");
-                int fileIdx = Array.IndexOf(colFields, "FileName");
+                int nameIdx = Array.IndexOf(colFields, EmailSettings.NameColumn);
+                int emailIdx = Array.IndexOf(colFields, EmailSettings.EmailColumn);
+                int fileIdx = Array.IndexOf(colFields, EmailSettings.FileNameColumn);
 
                 List<string> missingColumns = [];
-                if (nameIdx == -1) missingColumns.Add("Name");
-                if (emailIdx == -1) missingColumns.Add("Email");
-                if (fileIdx == -1) missingColumns.Add("FileName");
+                if (nameIdx == -1) missingColumns.Add(EmailSettings.NameColumn);
+                if (emailIdx == -1) missingColumns.Add(EmailSettings.EmailColumn);
+                if (fileIdx == -1) missingColumns.Add(EmailSettings.FileNameColumn);
 
                 if (missingColumns.Count > 0)
                 {
-                    MessageBox.Show($"The following required columns are missing from the input file: {string.Join(", ", missingColumns)}", "Input Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                    return [];
+                    Application.Current.Dispatcher.Invoke(() => 
+                        DialogCentered.ShowDialog($"The following required columns are missing from the input file: {string.Join(", ", missingColumns)}",
+                        "Input Error"));
+                    return false;
                 }
 
                 while (!csvReader.EndOfData)
@@ -331,9 +342,10 @@ namespace EmailWithAttachedFile
             }
             catch (Exception ex)
             {
-                MessageBox.Show(ex.ToString());
+                Application.Current.Dispatcher.Invoke(() => DialogCentered.ShowDialog(ex.ToString(), string.Empty));
+                return false;
             }
-            return jobs;
+            return true;
         }
 
         private void ButtonSettings_Click(object sender, RoutedEventArgs e)

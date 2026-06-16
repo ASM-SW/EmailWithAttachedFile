@@ -1,5 +1,6 @@
 using Microsoft.Win32;
 using System.Windows;
+using DialogCentered = ASM_SW.UtilitiesCSharp.DialogCentered;
 
 namespace EmailWithAttachedFile
 {
@@ -20,6 +21,9 @@ namespace EmailWithAttachedFile
             txtTemplateFile.Text = EmailSettings.TemplateFileName;
             txtInputFile.Text = EmailSettings.InputFileName;
             txtMailSubject.Text = EmailSettings.MailSubject;
+            txtNameColumn.Text = EmailSettings.NameColumn;
+            txtEmailColumn.Text = EmailSettings.EmailColumn;
+            txtFileNameColumn.Text = EmailSettings.FileNameColumn;
             textSettingsFileName.Text = $"Settings file: {EmailSettings.SettingsFileName}";
 
             attachements.Items.Clear();
@@ -82,7 +86,10 @@ namespace EmailWithAttachedFile
                 txtTemplateFile.Text,
                 txtInputFile.Text,
                 txtMailSubject.Text,
-                attachments);
+                attachments,
+                txtNameColumn.Text,
+                txtEmailColumn.Text,
+                txtFileNameColumn.Text);
 
             if (EmailSettings.Save())
             {
@@ -91,7 +98,7 @@ namespace EmailWithAttachedFile
             }
             else
             {
-                MessageBox.Show($"Error saving settings: {EmailSettings.Message}", "Save Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                DialogCentered.ShowDialog($"Error saving settings: {EmailSettings.Message}", "Save Error");
             }
         }
     }

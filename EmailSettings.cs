@@ -19,8 +19,11 @@ namespace EmailWithAttachedFile
             string TemplateFileName,
             string InputFileName,
             string MailSubject,
-            List<string> Attachments);
-        private Values _values = new(string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, []);
+            List<string> Attachments,
+            string NameColumn,
+            string EmailColumn,
+            string FileNameColumn);
+        private Values _values = new(string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, [], "Name", "Email", "FileName");
 
         private static readonly EmailSettings _instance = new();
         private static string _filePath = string.Empty;
@@ -65,10 +68,13 @@ namespace EmailWithAttachedFile
         public static string InputFileName => _instance._values.InputFileName;
         public static string MailSubject => _instance._values.MailSubject;
         public static List<string> Attachments => _instance._values.Attachments ?? [];
+        public static string NameColumn => _instance._values.NameColumn;
+        public static string EmailColumn => _instance._values.EmailColumn;
+        public static string FileNameColumn => _instance._values.FileNameColumn;
 
-        public static void Update(string tenantId, string clientId, string emailAddress, string emailAuthor, string templateFile, string inputFile, string subject, List<string> attachments)
+        public static void Update(string tenantId, string clientId, string emailAddress, string emailAuthor, string templateFile, string inputFile, string subject, List<string> attachments, string nameColumn, string emailColumn, string fileNameColumn)
         {
-            _instance._values = new Values(tenantId, clientId, emailAddress, emailAuthor, templateFile, inputFile, subject, attachments ?? []);
+            _instance._values = new Values(tenantId, clientId, emailAddress, emailAuthor, templateFile, inputFile, subject, attachments ?? [], nameColumn, emailColumn, fileNameColumn);
         }
 
         /// <summary>
@@ -169,6 +175,19 @@ namespace EmailWithAttachedFile
                 res = false;
                 Message += "MailSubject is missing from file\n";
             }
+            if (string.IsNullOrEmpty(_values.NameColumn))
+            {
+                _values = _values with { NameColumn = "Name" };
+            }
+            if (string.IsNullOrEmpty(_values.EmailColumn))
+            {
+                _values = _values with { EmailColumn = "Email" };
+            }
+            if (string.IsNullOrEmpty(_values.FileNameColumn))
+            {
+                _values = _values with { FileNameColumn = "FileName" };
+            }
+
             return res;
         }
 

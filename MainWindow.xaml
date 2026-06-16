@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:EmailWithAttachedFile"
         mc:Ignorable="d"
         Title="Email With Attached File" Height="750" Width="550" Closing="MainFormClosing" 
-        FontWeight="DemiBold" FontSize="12" ResizeMode="CanResize">
+        FontWeight="DemiBold" FontSize="12" ResizeMode="CanResizeWithGrip">
 
     <Window.Resources>
 
