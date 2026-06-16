@@ -18,7 +18,7 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
-        <Grid Grid.Row="0" HorizontalAlignment="Left" Height="Auto" Margin="5" VerticalAlignment="Top" Width="500">
+        <Grid Grid.Row="0" HorizontalAlignment="Stretch" Height="Auto" Margin="5" VerticalAlignment="Top">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
@@ -40,28 +40,28 @@
             <Button Grid.Row="0" Grid.Column="2" Grid.ColumnSpan="2" Content="Help" Click="ButtonHelp_Click" Margin="5,0,5,10" Padding="3,0" />
 
             <Label Content="Email Address:" Grid.Row="1" Grid.Column="0" VerticalAlignment="Center"/>
-            <TextBox x:Name="textEmailAddress" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3" Margin="5" IsReadOnly="True" Background="#F0F0F0"/>
+            <TextBox x:Name="textEmailAddress" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Margin="5" IsReadOnly="True" Background="#F0F0F0"/>
 
             <Label Content="Email Author:" Grid.Row="2" Grid.Column="0" VerticalAlignment="Center"/>
-            <TextBox x:Name="textEmailAuthor" Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="3" Margin="5" IsReadOnly="True" Background="#F0F0F0"/>
+            <TextBox x:Name="textEmailAuthor" Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" Margin="5" IsReadOnly="True" Background="#F0F0F0"/>
 
             <Label Content="Template File:" Grid.Row="3" Grid.Column="0" VerticalAlignment="Center"/>
-            <TextBox x:Name="textTemplateFileName" Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="3" Margin="5" IsReadOnly="True" Background="#F0F0F0"/>
+            <TextBox x:Name="textTemplateFileName" Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" Margin="5" IsReadOnly="True" Background="#F0F0F0"/>
 
             <Label Content="Input File:" Grid.Row="4" Grid.Column="0" VerticalAlignment="Center"/>
-            <TextBox x:Name="textInputFileName" Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="3" Margin="5" IsReadOnly="True" Background="#F0F0F0"/>
+            <TextBox x:Name="textInputFileName" Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="2" Margin="5" IsReadOnly="True" Background="#F0F0F0"/>
 
             <Label Content="Mail Subject:" Grid.Row="5" Grid.Column="0" VerticalAlignment="Center"/>
-            <TextBox x:Name="textMailSubject" Grid.Row="5" Grid.Column="1" Grid.ColumnSpan="3" Margin="5" IsReadOnly="True" Background="#F0F0F0"/>
+            <TextBox x:Name="textMailSubject" Grid.Row="5" Grid.Column="1" Grid.ColumnSpan="2" Margin="5" IsReadOnly="True" Background="#F0F0F0"/>
 
             <Label Content=" Attachments:" Grid.Row="6" Grid.Column="0" VerticalAlignment="Top" Margin="0,5,0,0"/>
-            <ListBox x:Name="listAttachments" Grid.Row="6" Grid.Column="1" Grid.ColumnSpan="3" Height="60" Margin="5" Background="#F0F0F0"/>
+            <ListBox x:Name="listAttachments" Grid.Row="6" Grid.Column="1" Grid.ColumnSpan="2" Height="60" Margin="5" Background="#F0F0F0"/>
 
             <StackPanel Orientation="Horizontal" Grid.Row="7" Grid.Column="1" HorizontalAlignment="Right" Margin="0,1,140,0">
                 <Button x:Name="buttonStart" Content="Start" Padding="10,2" Margin="5" Click="ButtonStart_Click" IsEnabled="False"/>
                 <Button x:Name="buttonStop" Content="Stop" Padding="10,2" Margin="5" Click="ButtonStop_Click" IsEnabled="False"/>
             </StackPanel>
-            <Button Grid.Row="7" Grid.Column="3" x:Name="buttonExit" Content="Exit" Margin="5,0"
+                <Button Grid.Row="7" Grid.Column="2" x:Name="buttonExit" Content="Exit" Margin="5,0"
                     Padding="3,0" Click="ButtonExit_Click" Height="20"/>
         </Grid>
         <DockPanel x:Name="panelProgress" Grid.Row="1" Margin="0,10" LastChildFill="True" Visibility="HIdden">
