@@ -315,6 +315,8 @@ namespace EmailWithAttachedFile
                 while (!csvReader.EndOfData)
                 {
                     string[]? fieldData = csvReader.ReadFields();
+                    if (fieldData==null ||  fileIdx > fieldData.Length - 1)
+                        continue;
                     if (fieldData != null)
                     {
                         jobs.Add(new EmailJob
